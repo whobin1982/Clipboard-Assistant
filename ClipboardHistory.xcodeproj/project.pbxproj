@@ -14,6 +14,9 @@
 		6A4A1E7D7F834F3D907A1F22 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47BD1C4373414A48A4071CB7 /* AppSettings.swift */; };
 		727B8E81225C4F5A9FBB3701 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727B8E81225C4F5A9FBB3700 /* PasteService.swift */; };
 		727B8E81225C4F5A9FBB3703 /* ShortcutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727B8E81225C4F5A9FBB3702 /* ShortcutService.swift */; };
+		74294E60A13F4FD4AA940901 /* ClipboardPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74294E60A13F4FD4AA940900 /* ClipboardPopupView.swift */; };
+		74294E60A13F4FD4AA940903 /* ClipboardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74294E60A13F4FD4AA940902 /* ClipboardRowView.swift */; };
+		74294E60A13F4FD4AA940905 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74294E60A13F4FD4AA940904 /* SettingsViewModel.swift */; };
 		79F0B401D0A747D9B0D08A01 /* RetentionCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A00 /* RetentionCleaner.swift */; };
 		79F0B401D0A747D9B0D08A03 /* ClipboardHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */; };
 		79F0B401D0A747D9B0D08A05 /* RetentionCleanerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A04 /* RetentionCleanerTests.swift */; };
@@ -52,6 +55,9 @@
 		6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
 		727B8E81225C4F5A9FBB3700 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
 		727B8E81225C4F5A9FBB3702 /* ShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutService.swift; sourceTree = "<group>"; };
+		74294E60A13F4FD4AA940900 /* ClipboardPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPopupView.swift; sourceTree = "<group>"; };
+		74294E60A13F4FD4AA940902 /* ClipboardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardRowView.swift; sourceTree = "<group>"; };
+		74294E60A13F4FD4AA940904 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A00 /* RetentionCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionCleaner.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryViewModel.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A04 /* RetentionCleanerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionCleanerTests.swift; sourceTree = "<group>"; };
@@ -89,6 +95,8 @@
 		7EA9ED289286CE10FB4465F2 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				74294E60A13F4FD4AA940900 /* ClipboardPopupView.swift */,
+				74294E60A13F4FD4AA940902 /* ClipboardRowView.swift */,
 				18132A4F337086A4EAF35C52 /* MenuBarView.swift */,
 				290423EEB60818D1FEAF9F19 /* SettingsView.swift */,
 			);
@@ -154,6 +162,7 @@
 			isa = PBXGroup;
 			children = (
 				79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */,
+				74294E60A13F4FD4AA940904 /* SettingsViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -276,8 +285,11 @@
 				D41A7B7C55964FE8849F3A01 /* ImageStorage.swift in Sources */,
 				727B8E81225C4F5A9FBB3701 /* PasteService.swift in Sources */,
 				79F0B401D0A747D9B0D08A03 /* ClipboardHistoryViewModel.swift in Sources */,
+				74294E60A13F4FD4AA940905 /* SettingsViewModel.swift in Sources */,
 				79F0B401D0A747D9B0D08A01 /* RetentionCleaner.swift in Sources */,
 				727B8E81225C4F5A9FBB3703 /* ShortcutService.swift in Sources */,
+				74294E60A13F4FD4AA940903 /* ClipboardRowView.swift in Sources */,
+				74294E60A13F4FD4AA940901 /* ClipboardPopupView.swift in Sources */,
 				4D0F3C118D98D9E9127FD527 /* MenuBarView.swift in Sources */,
 				8D31E4740482E3F516A419D6 /* SettingsView.swift in Sources */,
 			);
