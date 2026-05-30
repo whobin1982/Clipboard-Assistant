@@ -57,7 +57,7 @@ final class AppEnvironmentTests: XCTestCase {
     }
 
     @MainActor
-    func testPasteCopiesMarksUsedClosesReactivatesThenSendsPaste() async throws {
+    func testMenuPasteCopiesAndSendsWithoutUsingSearchPresenter() async throws {
         let pasteSent = expectation(description: "paste command sent")
         let recorder = AppEnvironmentCallRecorder()
         let item = ClipboardItem.text("Saved text")
@@ -83,10 +83,47 @@ final class AppEnvironmentTests: XCTestCase {
             recorder.calls,
             [
                 "writeText:Saved text",
+                "sendPasteCommand",
+                "insert",
+                "fetchAll"
+            ]
+        )
+        XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
+    }
+
+    @MainActor
+    func testPopupPasteCopiesMarksUsedClosesConsumesTargetThenSendsPaste() async throws {
+        let pasteSent = expectation(description: "paste command sent")
+        let recorder = AppEnvironmentCallRecorder()
+        let item = ClipboardItem.text("Saved text")
+        let store = AppEnvironmentFakeStore(items: [item], recorder: recorder)
+        let pasteboard = AppEnvironmentFakePasteboardWriter(recorder: recorder)
+        let sender = AppEnvironmentFakePasteEventSender(recorder: recorder) {
+            pasteSent.fulfill()
+        }
+        let pasteService = PasteService(pasteboard: pasteboard, pasteEventSender: sender)
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            store: store,
+            pasteService: pasteService,
+            searchWindowPresenter: presenter
+        )
+
+        environment.openSearch()
+        recorder.calls.removeAll()
+        try XCTUnwrap(presenter.onPaste)(item)
+
+        await fulfillment(of: [pasteSent], timeout: 1)
+        XCTAssertEqual(pasteboard.writtenText, "Saved text")
+        XCTAssertNil(environment.lastErrorMessage)
+        XCTAssertEqual(
+            recorder.calls,
+            [
+                "writeText:Saved text",
                 "insert",
                 "fetchAll",
                 "orderOut",
-                "reactivatePreviousApplication",
+                "consumePreviousApplication",
                 "sendPasteCommand"
             ]
         )
@@ -164,6 +201,7 @@ private final class AppEnvironmentFakeStore: ClipboardStore {
 @MainActor
 private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresenting {
     private let recorder: AppEnvironmentCallRecorder
+    private(set) var onPaste: ((ClipboardItem) -> Void)?
 
     init(recorder: AppEnvironmentCallRecorder) {
         self.recorder = recorder
@@ -174,14 +212,17 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
         onPaste: @escaping (ClipboardItem) -> Void,
         onCopy: @escaping (ClipboardItem) -> Void,
         onDelete: @escaping (ClipboardItem) -> Void
-    ) {}
+    ) {
+        self.onPaste = onPaste
+    }
 
     func orderOut() {
         recorder.record("orderOut")
     }
 
-    func reactivatePreviousApplication() {
-        recorder.record("reactivatePreviousApplication")
+    func consumePreviousApplication() -> NSRunningApplication? {
+        recorder.record("consumePreviousApplication")
+        return nil
     }
 }
 
@@ -230,7 +271,7 @@ private final class AppEnvironmentFakePasteEventSender: PasteEventSending {
 }
 
 private final class AppEnvironmentCallRecorder {
-    private(set) var calls: [String] = []
+    var calls: [String] = []
 
     func record(_ call: String) {
         calls.append(call)
