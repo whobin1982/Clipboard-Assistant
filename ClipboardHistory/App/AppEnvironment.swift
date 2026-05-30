@@ -15,7 +15,7 @@ final class AppEnvironment: ObservableObject {
 
     private let store: ClipboardStore
     private let pasteService: PasteService
-    private let searchWindowPresenter: SearchWindowPresenter
+    private let searchWindowPresenter: SearchWindowPresenting
     private let imageStorage: ImageStorage?
     private let recordingState: RecordingState
     private var retentionCleaner: RetentionCleaner?
@@ -27,7 +27,7 @@ final class AppEnvironment: ObservableObject {
         isRecordingPaused: Bool = false,
         store: ClipboardStore = InMemoryClipboardStore(),
         pasteService: PasteService = PasteService(),
-        searchWindowPresenter: SearchWindowPresenter? = nil,
+        searchWindowPresenter: SearchWindowPresenting? = nil,
         imageStorage: ImageStorage? = nil,
         settings: AppSettings = .default,
         storageUsageProvider: @escaping () -> Int64 = { 0 },
@@ -171,9 +171,16 @@ final class AppEnvironment: ObservableObject {
 
     func paste(_ item: ClipboardItem) {
         do {
-            try pasteService.copyAndPaste(item)
+            try pasteService.copy(item)
             try markUsed(item)
             historyViewModel.reload()
+            searchWindowPresenter.orderOut()
+            searchWindowPresenter.reactivatePreviousApplication()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+                Task { @MainActor in
+                    self?.sendPasteCommand()
+                }
+            }
         } catch {
             lastErrorMessage = error.localizedDescription
         }
@@ -220,6 +227,15 @@ final class AppEnvironment: ObservableObject {
         updatedItem.lastUsedAt = Date()
         try store.insert(updatedItem)
         lastErrorMessage = nil
+    }
+
+    private func sendPasteCommand() {
+        do {
+            try pasteService.sendPasteCommand()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
     }
 
     private func startPeriodicRetentionCleanup() {

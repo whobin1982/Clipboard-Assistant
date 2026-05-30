@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import ClipboardHistory
 
@@ -54,21 +55,91 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: imageURL.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: thumbnailURL.path))
     }
+
+    @MainActor
+    func testPasteCopiesMarksUsedClosesReactivatesThenSendsPaste() async throws {
+        let pasteSent = expectation(description: "paste command sent")
+        let recorder = AppEnvironmentCallRecorder()
+        let item = ClipboardItem.text("Saved text")
+        let store = AppEnvironmentFakeStore(items: [item], recorder: recorder)
+        let pasteboard = AppEnvironmentFakePasteboardWriter(recorder: recorder)
+        let sender = AppEnvironmentFakePasteEventSender(recorder: recorder) {
+            pasteSent.fulfill()
+        }
+        let pasteService = PasteService(pasteboard: pasteboard, pasteEventSender: sender)
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            store: store,
+            pasteService: pasteService,
+            searchWindowPresenter: presenter
+        )
+
+        environment.paste(item)
+
+        await fulfillment(of: [pasteSent], timeout: 1)
+        XCTAssertEqual(pasteboard.writtenText, "Saved text")
+        XCTAssertNil(environment.lastErrorMessage)
+        XCTAssertEqual(
+            recorder.calls,
+            [
+                "writeText:Saved text",
+                "insert",
+                "fetchAll",
+                "orderOut",
+                "reactivatePreviousApplication",
+                "sendPasteCommand"
+            ]
+        )
+        XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
+    }
+
+    @MainActor
+    func testPasteSenderFailureLeavesItemCopiedAndSurfacesError() async throws {
+        let pasteSent = expectation(description: "paste command attempted")
+        let recorder = AppEnvironmentCallRecorder()
+        let item = ClipboardItem.text("Saved text")
+        let store = AppEnvironmentFakeStore(items: [item], recorder: recorder)
+        let pasteboard = AppEnvironmentFakePasteboardWriter(recorder: recorder)
+        let sender = AppEnvironmentFakePasteEventSender(
+            recorder: recorder,
+            error: AppEnvironmentTestError.pasteFailed
+        ) {
+            pasteSent.fulfill()
+        }
+        let pasteService = PasteService(pasteboard: pasteboard, pasteEventSender: sender)
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            store: store,
+            pasteService: pasteService,
+            searchWindowPresenter: presenter
+        )
+
+        environment.paste(item)
+
+        await fulfillment(of: [pasteSent], timeout: 1)
+        XCTAssertEqual(pasteboard.writtenText, "Saved text")
+        XCTAssertEqual(environment.lastErrorMessage, AppEnvironmentTestError.pasteFailed.localizedDescription)
+        XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
+    }
 }
 
 private final class AppEnvironmentFakeStore: ClipboardStore {
     private var items: [ClipboardItem]
+    private let recorder: AppEnvironmentCallRecorder?
 
-    init(items: [ClipboardItem]) {
+    init(items: [ClipboardItem], recorder: AppEnvironmentCallRecorder? = nil) {
         self.items = items
+        self.recorder = recorder
     }
 
     func insert(_ item: ClipboardItem) throws {
+        recorder?.record("insert")
         items.removeAll { $0.id == item.id }
         items.append(item)
     }
 
     func fetchAll() throws -> [ClipboardItem] {
+        recorder?.record("fetchAll")
         items
     }
 
@@ -88,4 +159,84 @@ private final class AppEnvironmentFakeStore: ClipboardStore {
     func deleteAll(includeFavorites: Bool) throws {
         items.removeAll { includeFavorites || !$0.isFavorite }
     }
+}
+
+@MainActor
+private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresenting {
+    private let recorder: AppEnvironmentCallRecorder
+
+    init(recorder: AppEnvironmentCallRecorder) {
+        self.recorder = recorder
+    }
+
+    func show(
+        viewModel: ClipboardHistoryViewModel,
+        onPaste: @escaping (ClipboardItem) -> Void,
+        onCopy: @escaping (ClipboardItem) -> Void,
+        onDelete: @escaping (ClipboardItem) -> Void
+    ) {}
+
+    func orderOut() {
+        recorder.record("orderOut")
+    }
+
+    func reactivatePreviousApplication() {
+        recorder.record("reactivatePreviousApplication")
+    }
+}
+
+private final class AppEnvironmentFakePasteboardWriter: PasteboardWriting {
+    private let recorder: AppEnvironmentCallRecorder
+    private(set) var writtenText: String?
+    private(set) var writtenImage: NSImage?
+
+    init(recorder: AppEnvironmentCallRecorder) {
+        self.recorder = recorder
+    }
+
+    func writeText(_ text: String) throws {
+        writtenText = text
+        recorder.record("writeText:\(text)")
+    }
+
+    func writeImage(_ image: NSImage) throws {
+        writtenImage = image
+        recorder.record("writeImage")
+    }
+}
+
+private final class AppEnvironmentFakePasteEventSender: PasteEventSending {
+    private let recorder: AppEnvironmentCallRecorder
+    private let error: Error?
+    private let onSend: () -> Void
+
+    init(
+        recorder: AppEnvironmentCallRecorder,
+        error: Error? = nil,
+        onSend: @escaping () -> Void
+    ) {
+        self.recorder = recorder
+        self.error = error
+        self.onSend = onSend
+    }
+
+    func sendPasteCommand() throws {
+        recorder.record("sendPasteCommand")
+        onSend()
+        if let error {
+            throw error
+        }
+    }
+}
+
+private final class AppEnvironmentCallRecorder {
+    private(set) var calls: [String] = []
+
+    func record(_ call: String) {
+        calls.append(call)
+    }
+}
+
+private enum AppEnvironmentTestError: Error {
+    case pasteFailed
 }

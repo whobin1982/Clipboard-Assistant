@@ -69,6 +69,10 @@ final class PasteService {
 
     func copyAndPaste(_ item: ClipboardItem) throws {
         try copy(item)
+        try sendPasteCommand()
+    }
+
+    func sendPasteCommand() throws {
         try pasteEventSender.sendPasteCommand()
     }
 }

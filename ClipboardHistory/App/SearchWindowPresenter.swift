@@ -2,8 +2,21 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class SearchWindowPresenter {
+protocol SearchWindowPresenting: AnyObject {
+    func show(
+        viewModel: ClipboardHistoryViewModel,
+        onPaste: @escaping (ClipboardItem) -> Void,
+        onCopy: @escaping (ClipboardItem) -> Void,
+        onDelete: @escaping (ClipboardItem) -> Void
+    )
+    func orderOut()
+    func reactivatePreviousApplication()
+}
+
+@MainActor
+final class SearchWindowPresenter: SearchWindowPresenting {
     private var panel: NSPanel?
+    private var previousApplication: NSRunningApplication?
 
     func show(
         viewModel: ClipboardHistoryViewModel,
@@ -11,6 +24,8 @@ final class SearchWindowPresenter {
         onCopy: @escaping (ClipboardItem) -> Void,
         onDelete: @escaping (ClipboardItem) -> Void
     ) {
+        capturePreviousApplication()
+
         let contentView = ClipboardPopupView(
             viewModel: viewModel,
             onPaste: onPaste,
@@ -24,6 +39,27 @@ final class SearchWindowPresenter {
         NSApplication.shared.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
+    }
+
+    func orderOut() {
+        panel?.orderOut(nil)
+    }
+
+    func reactivatePreviousApplication() {
+        if #available(macOS 14.0, *) {
+            previousApplication?.activate()
+        } else {
+            previousApplication?.activate(options: [.activateIgnoringOtherApps])
+        }
+    }
+
+    private func capturePreviousApplication() {
+        let frontmostApplication = NSWorkspace.shared.frontmostApplication
+        if frontmostApplication?.processIdentifier == NSRunningApplication.current.processIdentifier {
+            previousApplication = nil
+        } else {
+            previousApplication = frontmostApplication
+        }
     }
 
     private func makePanel() -> NSPanel {
