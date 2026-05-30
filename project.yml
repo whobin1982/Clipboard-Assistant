@@ -1,0 +1,32 @@
+name: ClipboardHistory
+options:
+  bundleIdPrefix: com.local
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+targets:
+  ClipboardHistory:
+    type: application
+    platform: macOS
+    sources:
+      - ClipboardHistory
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.local.ClipboardHistory
+        INFOPLIST_KEY_LSUIElement: true
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+    info:
+      path: ClipboardHistory/Info.plist
+      properties:
+        CFBundleDisplayName: ClipboardHistory
+        LSUIElement: true
+        NSPrincipalClass: NSApplication
+  ClipboardHistoryTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - ClipboardHistoryTests
+    dependencies:
+      - target: ClipboardHistory
