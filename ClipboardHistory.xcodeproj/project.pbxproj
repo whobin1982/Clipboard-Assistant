@@ -17,6 +17,8 @@
 		B47A2C9E0F18464CB0A3D108 /* SQLiteClipboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47A2C9E0F18464CB0A3D103 /* SQLiteClipboardStore.swift */; };
 		B47A2C9E0F18464CB0A3D109 /* ClipboardStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47A2C9E0F18464CB0A3D104 /* ClipboardStoreTests.swift */; };
 		C1EB97E29398415498C109E5 /* ClipboardItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D4879B034A4BB8AF59AF38 /* ClipboardItem.swift */; };
+		D41A7B7C55964FE8849F3A01 /* ImageStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41A7B7C55964FE8849F3A00 /* ImageStorage.swift */; };
+		D41A7B7C55964FE8849F3A03 /* ImageStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41A7B7C55964FE8849F3A02 /* ImageStorageTests.swift */; };
 		E89840E65E2DE2EB936E63A6 /* ClipboardHistoryApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AF7D8DA531E0C01DEEDF37 /* ClipboardHistoryApp.swift */; };
 		F33518FBCD1935A1C776528C /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6487DEAC15726584A5AD54 /* AppEnvironment.swift */; };
 /* End PBXBuildFile section */
@@ -43,6 +45,8 @@
 		B47A2C9E0F18464CB0A3D102 /* DatabaseMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigrator.swift; sourceTree = "<group>"; };
 		B47A2C9E0F18464CB0A3D103 /* SQLiteClipboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteClipboardStore.swift; sourceTree = "<group>"; };
 		B47A2C9E0F18464CB0A3D104 /* ClipboardStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardStoreTests.swift; sourceTree = "<group>"; };
+		D41A7B7C55964FE8849F3A00 /* ImageStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStorage.swift; sourceTree = "<group>"; };
+		D41A7B7C55964FE8849F3A02 /* ImageStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStorageTests.swift; sourceTree = "<group>"; };
 		DF6487DEAC15726584A5AD54 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		EB5C8C954589F3C82BF890E3 /* ClipboardHistory.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipboardHistory.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2B55E512F6E53C76A4E34F8 /* ClipboardHistorySmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistorySmokeTests.swift; sourceTree = "<group>"; };
@@ -57,6 +61,7 @@
 				AA238A47415DF1ECBA0A8C23 /* App */,
 				C3576F982E6745D388780F2F /* Models */,
 				B47A2C9E0F18464CB0A3D105 /* Persistence */,
+				D41A7B7C55964FE8849F3A04 /* Services */,
 				7EA9ED289286CE10FB4465F2 /* Views */,
 			);
 			path = ClipboardHistory;
@@ -77,6 +82,7 @@
 				F2B55E512F6E53C76A4E34F8 /* ClipboardHistorySmokeTests.swift */,
 				2DA4806B9E8D4D3F90D0DB1C /* ClipboardItemTests.swift */,
 				B47A2C9E0F18464CB0A3D104 /* ClipboardStoreTests.swift */,
+				D41A7B7C55964FE8849F3A02 /* ImageStorageTests.swift */,
 			);
 			path = ClipboardHistoryTests;
 			sourceTree = "<group>";
@@ -107,6 +113,14 @@
 				B47A2C9E0F18464CB0A3D103 /* SQLiteClipboardStore.swift */,
 			);
 			path = Persistence;
+			sourceTree = "<group>";
+		};
+		D41A7B7C55964FE8849F3A04 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				D41A7B7C55964FE8849F3A00 /* ImageStorage.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		B8219C9FC936AF0DA456563F = {
@@ -204,6 +218,7 @@
 				526CDF1F468A3610F5E1A08F /* ClipboardHistorySmokeTests.swift in Sources */,
 				A2750EEA1EE54BC7A65B0A45 /* ClipboardItemTests.swift in Sources */,
 				B47A2C9E0F18464CB0A3D109 /* ClipboardStoreTests.swift in Sources */,
+				D41A7B7C55964FE8849F3A03 /* ImageStorageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,6 +233,7 @@
 				B47A2C9E0F18464CB0A3D106 /* ClipboardStore.swift in Sources */,
 				B47A2C9E0F18464CB0A3D107 /* DatabaseMigrator.swift in Sources */,
 				B47A2C9E0F18464CB0A3D108 /* SQLiteClipboardStore.swift in Sources */,
+				D41A7B7C55964FE8849F3A01 /* ImageStorage.swift in Sources */,
 				4D0F3C118D98D9E9127FD527 /* MenuBarView.swift in Sources */,
 				8D31E4740482E3F516A419D6 /* SettingsView.swift in Sources */,
 			);
