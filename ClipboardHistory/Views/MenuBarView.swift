@@ -34,11 +34,11 @@ struct MenuBarView: View {
 
         Menu("Clear History") {
             Button("Clear Non-Favorites") {
-                environment.settingsViewModel.clearNonFavorites()
+                confirmClearNonFavorites()
             }
 
             Button("Clear All Records", role: .destructive) {
-                environment.settingsViewModel.clearAll()
+                confirmClearAll()
             }
         }
 
@@ -56,6 +56,40 @@ struct MenuBarView: View {
         .onAppear {
             environment.historyViewModel.reload()
         }
+    }
+
+    private func confirmClearNonFavorites() {
+        guard confirmClear(
+            title: "Clear Non-Favorites?",
+            message: "This removes every clipboard record that is not marked as a favorite.",
+            confirmTitle: "Clear Non-Favorites"
+        ) else {
+            return
+        }
+
+        environment.settingsViewModel.clearNonFavorites()
+    }
+
+    private func confirmClearAll() {
+        guard confirmClear(
+            title: "Clear All Records?",
+            message: "This removes every clipboard record, including favorites.",
+            confirmTitle: "Clear All Records"
+        ) else {
+            return
+        }
+
+        environment.settingsViewModel.clearAll()
+    }
+
+    private func confirmClear(title: String, message: String, confirmTitle: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: confirmTitle)
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 }
 

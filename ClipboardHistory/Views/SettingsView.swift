@@ -10,6 +10,7 @@ struct SettingsView: View {
 
 private struct SettingsFormView: View {
     @ObservedObject var viewModel: SettingsViewModel
+    @State private var clearConfirmation: ClearConfirmation?
 
     var body: some View {
         Form {
@@ -45,14 +46,29 @@ private struct SettingsFormView: View {
             Section("Danger Zone") {
                 Menu("Clear History") {
                     Button("Clear Non-Favorites") {
-                        viewModel.clearNonFavorites()
+                        clearConfirmation = .nonFavorites
                     }
 
                     Button("Clear All Records", role: .destructive) {
-                        viewModel.clearAll()
+                        clearConfirmation = .all
                     }
                 }
             }
+        }
+        .alert(item: $clearConfirmation) { confirmation in
+            Alert(
+                title: Text(confirmation.title),
+                message: Text(confirmation.message),
+                primaryButton: .destructive(Text(confirmation.confirmTitle)) {
+                    switch confirmation {
+                    case .nonFavorites:
+                        viewModel.clearNonFavorites()
+                    case .all:
+                        viewModel.clearAll()
+                    }
+                },
+                secondaryButton: .cancel()
+            )
         }
         .padding()
         .frame(width: 460, height: 320)
@@ -70,5 +86,39 @@ private struct SettingsFormView: View {
             get: { viewModel.launchAtLogin },
             set: { viewModel.launchAtLogin = $0 }
         )
+    }
+}
+
+private enum ClearConfirmation: Hashable, Identifiable {
+    case nonFavorites
+    case all
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .nonFavorites:
+            return "Clear Non-Favorites?"
+        case .all:
+            return "Clear All Records?"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .nonFavorites:
+            return "This removes every clipboard record that is not marked as a favorite."
+        case .all:
+            return "This removes every clipboard record, including favorites."
+        }
+    }
+
+    var confirmTitle: String {
+        switch self {
+        case .nonFavorites:
+            return "Clear Non-Favorites"
+        case .all:
+            return "Clear All Records"
+        }
     }
 }
