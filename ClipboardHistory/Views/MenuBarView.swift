@@ -9,6 +9,11 @@ struct MenuBarView: View {
             environment.openSearch()
         }
 
+        if let message = environment.lastErrorMessage ?? environment.settingsViewModel.lastErrorMessage {
+            Text(message)
+                .foregroundStyle(.red)
+        }
+
         if environment.isSearchPresented {
             ClipboardPopupView(
                 viewModel: environment.historyViewModel,

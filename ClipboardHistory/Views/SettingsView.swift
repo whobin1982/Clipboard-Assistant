@@ -35,6 +35,11 @@ private struct SettingsFormView: View {
             Section("App") {
                 Toggle("Launch at Login", isOn: launchAtLogin)
 
+                if let message = viewModel.lastErrorMessage {
+                    Text(message)
+                        .foregroundStyle(.red)
+                }
+
                 HStack {
                     Text("Shortcut")
                     Spacer()
