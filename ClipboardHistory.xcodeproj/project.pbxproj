@@ -12,12 +12,15 @@
 		6E4C1A0F2B3D4E5F60718291 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4C1A0F2B3D4E5F60718292 /* ClipboardMonitor.swift */; };
 		6E4C1A0F2B3D4E5F60718294 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */; };
 		6A4A1E7D7F834F3D907A1F22 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47BD1C4373414A48A4071CB7 /* AppSettings.swift */; };
+		727B8E81225C4F5A9FBB3701 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727B8E81225C4F5A9FBB3700 /* PasteService.swift */; };
+		727B8E81225C4F5A9FBB3703 /* ShortcutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727B8E81225C4F5A9FBB3702 /* ShortcutService.swift */; };
 		79F0B401D0A747D9B0D08A01 /* RetentionCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A00 /* RetentionCleaner.swift */; };
 		79F0B401D0A747D9B0D08A03 /* ClipboardHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */; };
 		79F0B401D0A747D9B0D08A05 /* RetentionCleanerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A04 /* RetentionCleanerTests.swift */; };
 		79F0B401D0A747D9B0D08A07 /* ClipboardHistoryViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A06 /* ClipboardHistoryViewModelTests.swift */; };
 		8D31E4740482E3F516A419D6 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 290423EEB60818D1FEAF9F19 /* SettingsView.swift */; };
 		A2750EEA1EE54BC7A65B0A45 /* ClipboardItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA4806B9E8D4D3F90D0DB1C /* ClipboardItemTests.swift */; };
+		A7E319D89A6C4E24AB0D7001 /* PasteServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E319D89A6C4E24AB0D7000 /* PasteServiceTests.swift */; };
 		B47A2C9E0F18464CB0A3D106 /* ClipboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47A2C9E0F18464CB0A3D101 /* ClipboardStore.swift */; };
 		B47A2C9E0F18464CB0A3D107 /* DatabaseMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47A2C9E0F18464CB0A3D102 /* DatabaseMigrator.swift */; };
 		B47A2C9E0F18464CB0A3D108 /* SQLiteClipboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47A2C9E0F18464CB0A3D103 /* SQLiteClipboardStore.swift */; };
@@ -47,12 +50,15 @@
 		53AF7D8DA531E0C01DEEDF37 /* ClipboardHistoryApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryApp.swift; sourceTree = "<group>"; };
 		6E4C1A0F2B3D4E5F60718292 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
+		727B8E81225C4F5A9FBB3700 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
+		727B8E81225C4F5A9FBB3702 /* ShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutService.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A00 /* RetentionCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionCleaner.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryViewModel.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A04 /* RetentionCleanerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionCleanerTests.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A06 /* ClipboardHistoryViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryViewModelTests.swift; sourceTree = "<group>"; };
 		84043D57EB257CEC7C2DD1EF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8A172EDDA8A5FF1218E03D5D /* ClipboardHistoryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClipboardHistoryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A7E319D89A6C4E24AB0D7000 /* PasteServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteServiceTests.swift; sourceTree = "<group>"; };
 		B47A2C9E0F18464CB0A3D101 /* ClipboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardStore.swift; sourceTree = "<group>"; };
 		B47A2C9E0F18464CB0A3D102 /* DatabaseMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigrator.swift; sourceTree = "<group>"; };
 		B47A2C9E0F18464CB0A3D103 /* SQLiteClipboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteClipboardStore.swift; sourceTree = "<group>"; };
@@ -98,6 +104,7 @@
 				79F0B401D0A747D9B0D08A06 /* ClipboardHistoryViewModelTests.swift */,
 				6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */,
 				D41A7B7C55964FE8849F3A02 /* ImageStorageTests.swift */,
+				A7E319D89A6C4E24AB0D7000 /* PasteServiceTests.swift */,
 				79F0B401D0A747D9B0D08A04 /* RetentionCleanerTests.swift */,
 			);
 			path = ClipboardHistoryTests;
@@ -136,7 +143,9 @@
 			children = (
 				6E4C1A0F2B3D4E5F60718292 /* ClipboardMonitor.swift */,
 				D41A7B7C55964FE8849F3A00 /* ImageStorage.swift */,
+				727B8E81225C4F5A9FBB3700 /* PasteService.swift */,
 				79F0B401D0A747D9B0D08A00 /* RetentionCleaner.swift */,
+				727B8E81225C4F5A9FBB3702 /* ShortcutService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -247,6 +256,7 @@
 				79F0B401D0A747D9B0D08A07 /* ClipboardHistoryViewModelTests.swift in Sources */,
 				6E4C1A0F2B3D4E5F60718294 /* ClipboardMonitorTests.swift in Sources */,
 				D41A7B7C55964FE8849F3A03 /* ImageStorageTests.swift in Sources */,
+				A7E319D89A6C4E24AB0D7001 /* PasteServiceTests.swift in Sources */,
 				79F0B401D0A747D9B0D08A05 /* RetentionCleanerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -264,8 +274,10 @@
 				B47A2C9E0F18464CB0A3D108 /* SQLiteClipboardStore.swift in Sources */,
 				6E4C1A0F2B3D4E5F60718291 /* ClipboardMonitor.swift in Sources */,
 				D41A7B7C55964FE8849F3A01 /* ImageStorage.swift in Sources */,
+				727B8E81225C4F5A9FBB3701 /* PasteService.swift in Sources */,
 				79F0B401D0A747D9B0D08A03 /* ClipboardHistoryViewModel.swift in Sources */,
 				79F0B401D0A747D9B0D08A01 /* RetentionCleaner.swift in Sources */,
+				727B8E81225C4F5A9FBB3703 /* ShortcutService.swift in Sources */,
 				4D0F3C118D98D9E9127FD527 /* MenuBarView.swift in Sources */,
 				8D31E4740482E3F516A419D6 /* SettingsView.swift in Sources */,
 			);
