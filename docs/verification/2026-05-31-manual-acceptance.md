@@ -4,6 +4,13 @@ Task: Manual Acceptance Verification for Version 1 of the native macOS clipboard
 
 Environment note: This environment cannot run `xcodebuild` because the active developer directory is `/Library/Developer/CommandLineTools`, not a full Xcode installation. Those checks are recorded as blocked by environment and are not treated as product failures.
 
+Latest reviewed implementation commit: `75c4d35 fix: mark menu paste before sending`.
+
+Post-acceptance-review fixes included before this final verification:
+
+- `f3b79fe`: image files are cleaned up on delete/clear/retention, retention cleanup runs during app lifetime, and shortcut selection is configurable/persisted.
+- `250387b`, `c67546c`, `64b6c9c`, `75c4d35`: popup paste targets the previously active app, menu paste avoids stale popup targets, and tests reflect the separated menu/popup paste paths.
+
 ## Acceptance Criteria Results
 
 | # | Acceptance criterion | Result | Notes |
@@ -97,4 +104,4 @@ Output: no output.
 
 Status: DONE_WITH_CONCERNS
 
-The requested manual acceptance checklist was created and all required verification commands were attempted. Full Xcode build and test verification are blocked by the local developer directory configuration, while lightweight checks available in this environment pass.
+The requested manual acceptance checklist was created and all required verification commands were attempted again after the final review fixes. Full Xcode build and test verification are blocked by the local developer directory configuration, while lightweight checks available in this environment pass.
