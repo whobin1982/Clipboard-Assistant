@@ -157,7 +157,7 @@ final class AppEnvironment: ObservableObject {
         historyViewModel.reload()
         searchWindowPresenter.show(
             viewModel: historyViewModel,
-            onPaste: paste,
+            onPaste: pasteFromSearchWindow,
             onCopy: copy,
             onDelete: delete
         )
@@ -171,11 +171,22 @@ final class AppEnvironment: ObservableObject {
 
     func paste(_ item: ClipboardItem) {
         do {
+            try pasteService.copyAndPaste(item)
+            try markUsed(item)
+            historyViewModel.reload()
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func pasteFromSearchWindow(_ item: ClipboardItem) {
+        do {
             try pasteService.copy(item)
             try markUsed(item)
             historyViewModel.reload()
             searchWindowPresenter.orderOut()
-            searchWindowPresenter.reactivatePreviousApplication()
+            let previousApplication = searchWindowPresenter.consumePreviousApplication()
+            reactivate(previousApplication)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
                 Task { @MainActor in
                     self?.sendPasteCommand()
@@ -183,6 +194,15 @@ final class AppEnvironment: ObservableObject {
             }
         } catch {
             lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func reactivate(_ application: NSRunningApplication?) {
+        guard let application else { return }
+        if #available(macOS 14.0, *) {
+            application.activate()
+        } else {
+            application.activate(options: [.activateIgnoringOtherApps])
         }
     }
 

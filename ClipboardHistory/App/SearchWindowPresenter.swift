@@ -10,7 +10,7 @@ protocol SearchWindowPresenting: AnyObject {
         onDelete: @escaping (ClipboardItem) -> Void
     )
     func orderOut()
-    func reactivatePreviousApplication()
+    func consumePreviousApplication() -> NSRunningApplication?
 }
 
 @MainActor
@@ -45,12 +45,9 @@ final class SearchWindowPresenter: SearchWindowPresenting {
         panel?.orderOut(nil)
     }
 
-    func reactivatePreviousApplication() {
-        if #available(macOS 14.0, *) {
-            previousApplication?.activate()
-        } else {
-            previousApplication?.activate(options: [.activateIgnoringOtherApps])
-        }
+    func consumePreviousApplication() -> NSRunningApplication? {
+        defer { previousApplication = nil }
+        return previousApplication
     }
 
     private func capturePreviousApplication() {
