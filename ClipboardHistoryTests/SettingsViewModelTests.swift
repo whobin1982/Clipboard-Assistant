@@ -83,9 +83,9 @@ final class AppEnvironmentTests: XCTestCase {
             recorder.calls,
             [
                 "writeText:Saved text",
-                "sendPasteCommand",
                 "insert",
-                "fetchAll"
+                "fetchAll",
+                "sendPasteCommand"
             ]
         )
         XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)

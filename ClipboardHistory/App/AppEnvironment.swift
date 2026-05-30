@@ -171,9 +171,10 @@ final class AppEnvironment: ObservableObject {
 
     func paste(_ item: ClipboardItem) {
         do {
-            try pasteService.copyAndPaste(item)
+            try pasteService.copy(item)
             try markUsed(item)
             historyViewModel.reload()
+            try pasteService.sendPasteCommand()
         } catch {
             lastErrorMessage = error.localizedDescription
         }
