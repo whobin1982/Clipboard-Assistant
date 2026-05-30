@@ -4,7 +4,7 @@ import Foundation
 
 protocol PasteboardWriting {
     func writeText(_ text: String) throws
-    func writeImage(at path: String) throws
+    func writeImage(_ image: NSImage) throws
 }
 
 protocol PasteEventSending {
@@ -60,7 +60,10 @@ final class PasteService {
             guard let imagePath = item.imagePath else {
                 throw PasteServiceError.missingImagePath
             }
-            try pasteboard.writeImage(at: imagePath)
+            guard let image = NSImage(contentsOfFile: imagePath) else {
+                throw PasteServiceError.unreadableImage(imagePath)
+            }
+            try pasteboard.writeImage(image)
         }
     }
 
@@ -84,10 +87,7 @@ final class SystemPasteboardWriter: PasteboardWriting {
         }
     }
 
-    func writeImage(at path: String) throws {
-        guard let image = NSImage(contentsOfFile: path) else {
-            throw PasteServiceError.unreadableImage(path)
-        }
+    func writeImage(_ image: NSImage) throws {
         pasteboard.clearContents()
         guard pasteboard.writeObjects([image]) else {
             throw PasteServiceError.pasteboardWriteFailed

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import XCTest
 @testable import ClipboardHistory
@@ -10,17 +11,22 @@ final class PasteServiceTests: XCTestCase {
         try service.copy(.text("Saved text"))
 
         XCTAssertEqual(pasteboard.writtenText, "Saved text")
-        XCTAssertNil(pasteboard.writtenImagePath)
+        XCTAssertNil(pasteboard.writtenImage)
     }
 
-    func testCopyImageWritesImagePathToPasteboard() throws {
+    func testCopyImageWritesLoadedImageToPasteboard() throws {
         let pasteboard = FakePasteboardWriter()
         let service = PasteService(pasteboard: pasteboard, pasteEventSender: FakePasteEventSender())
-        let item = ClipboardItem.image(imagePath: "/tmp/saved.png", thumbnailPath: "/tmp/thumb.png")
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("png")
+        let imageData = try XCTUnwrap(makeTestImage().pngData)
+        try imageData.write(to: imageURL)
+        defer { try? FileManager.default.removeItem(at: imageURL) }
 
-        try service.copy(item)
+        try service.copy(.image(imagePath: imageURL.path, thumbnailPath: "/tmp/thumb.png"))
 
-        XCTAssertEqual(pasteboard.writtenImagePath, "/tmp/saved.png")
+        XCTAssertNotNil(pasteboard.writtenImage)
         XCTAssertNil(pasteboard.writtenText)
     }
 
@@ -81,12 +87,24 @@ final class PasteServiceTests: XCTestCase {
             XCTAssertEqual(error as? PasteServiceError, .missingImagePath)
         }
     }
+
+    func testCopyImageThrowsWhenImagePathIsUnreadable() {
+        let service = PasteService(pasteboard: FakePasteboardWriter(), pasteEventSender: FakePasteEventSender())
+        let item = ClipboardItem.image(
+            imagePath: "/definitely/missing/file.png",
+            thumbnailPath: "/tmp/thumb.png"
+        )
+
+        XCTAssertThrowsError(try service.copy(item)) { error in
+            XCTAssertEqual(error as? PasteServiceError, .unreadableImage("/definitely/missing/file.png"))
+        }
+    }
 }
 
 private final class FakePasteboardWriter: PasteboardWriting {
     private let recorder: CallRecorder?
     private(set) var writtenText: String?
-    private(set) var writtenImagePath: String?
+    private(set) var writtenImage: NSImage?
 
     init(recorder: CallRecorder? = nil) {
         self.recorder = recorder
@@ -97,9 +115,9 @@ private final class FakePasteboardWriter: PasteboardWriting {
         recorder?.record("writeText:\(text)")
     }
 
-    func writeImage(at path: String) throws {
-        writtenImagePath = path
-        recorder?.record("writeImage:\(path)")
+    func writeImage(_ image: NSImage) throws {
+        writtenImage = image
+        recorder?.record("writeImage")
     }
 }
 
@@ -130,4 +148,25 @@ private final class CallRecorder {
 
 private enum TestError: Error, Equatable {
     case pasteFailed
+}
+
+private func makeTestImage() -> NSImage {
+    let image = NSImage(size: NSSize(width: 2, height: 2))
+    image.lockFocus()
+    NSColor.systemBlue.setFill()
+    NSRect(x: 0, y: 0, width: 2, height: 2).fill()
+    image.unlockFocus()
+    return image
+}
+
+private extension NSImage {
+    var pngData: Data? {
+        guard
+            let tiffRepresentation,
+            let bitmap = NSBitmapImageRep(data: tiffRepresentation)
+        else {
+            return nil
+        }
+        return bitmap.representation(using: .png, properties: [:])
+    }
 }
