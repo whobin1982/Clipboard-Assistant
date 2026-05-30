@@ -22,23 +22,16 @@ struct ClipboardPopupView: View {
                 ContentUnavailableView("No Clipboard Records", systemImage: "doc.on.clipboard")
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(viewModel.filteredItems) { item in
-                            ClipboardRowView(
-                                item: item,
-                                onFavorite: { viewModel.toggleFavorite(item) },
-                                onDelete: { viewModel.delete(item) },
-                                onPaste: { onPaste(item) },
-                                onCopy: { onCopy(item) }
-                            )
-
-                            if item.id != viewModel.filteredItems.last?.id {
-                                Divider()
-                            }
-                        }
-                    }
+                List(viewModel.filteredItems) { item in
+                    ClipboardRowView(
+                        item: item,
+                        onFavorite: { viewModel.toggleFavorite(item) },
+                        onDelete: { viewModel.delete(item) },
+                        onPaste: { onPaste(item) },
+                        onCopy: { onCopy(item) }
+                    )
                 }
+                .listStyle(.plain)
                 .frame(minHeight: 180, maxHeight: 360)
             }
         }
