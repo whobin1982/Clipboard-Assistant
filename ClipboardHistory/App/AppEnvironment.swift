@@ -9,13 +9,13 @@ final class AppEnvironment: ObservableObject {
             recordingState.isPaused = isRecordingPaused
         }
     }
-    @Published var isSearchPresented: Bool
     @Published var historyViewModel: ClipboardHistoryViewModel
     @Published var settingsViewModel: SettingsViewModel
     @Published var lastErrorMessage: String?
 
     private let store: ClipboardStore
     private let pasteService: PasteService
+    private let searchWindowPresenter: SearchWindowPresenter
     private let recordingState: RecordingState
     private var retentionCleaner: RetentionCleaner?
     private var clipboardMonitor: ClipboardMonitor?
@@ -23,9 +23,9 @@ final class AppEnvironment: ObservableObject {
 
     init(
         isRecordingPaused: Bool = false,
-        isSearchPresented: Bool = false,
         store: ClipboardStore = InMemoryClipboardStore(),
         pasteService: PasteService = PasteService(),
+        searchWindowPresenter: SearchWindowPresenter? = nil,
         settings: AppSettings = .default,
         storageUsageProvider: @escaping () -> Int64 = { 0 },
         settingsDidChange: @escaping (AppSettings) -> Void = { _ in },
@@ -33,9 +33,9 @@ final class AppEnvironment: ObservableObject {
         startupErrorMessage: String? = nil
     ) {
         self.isRecordingPaused = isRecordingPaused
-        self.isSearchPresented = isSearchPresented
         self.store = store
         self.pasteService = pasteService
+        self.searchWindowPresenter = searchWindowPresenter ?? SearchWindowPresenter()
         recordingState = RecordingState(isPaused: isRecordingPaused)
         lastErrorMessage = startupErrorMessage
 
@@ -123,8 +123,12 @@ final class AppEnvironment: ObservableObject {
     }
 
     func openSearch() {
-        isSearchPresented = true
         historyViewModel.reload()
+        searchWindowPresenter.show(
+            viewModel: historyViewModel,
+            onPaste: paste,
+            onCopy: copy
+        )
     }
 
     func openSettings() {

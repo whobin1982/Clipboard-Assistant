@@ -21,6 +21,7 @@
 		79F0B401D0A747D9B0D08A03 /* ClipboardHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */; };
 		79F0B401D0A747D9B0D08A05 /* RetentionCleanerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A04 /* RetentionCleanerTests.swift */; };
 		79F0B401D0A747D9B0D08A07 /* ClipboardHistoryViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A06 /* ClipboardHistoryViewModelTests.swift */; };
+		8BB0EA48158B4A8B9B2D6400 /* SearchWindowPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BB0EA48158B4A8B9B2D63FF /* SearchWindowPresenter.swift */; };
 		7F91D6A3C4B5482B9A102345 /* LoginItemService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F91D6A3C4B5482B9A102344 /* LoginItemService.swift */; };
 		8D31E4740482E3F516A419D6 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 290423EEB60818D1FEAF9F19 /* SettingsView.swift */; };
 		A2750EEA1EE54BC7A65B0A45 /* ClipboardItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA4806B9E8D4D3F90D0DB1C /* ClipboardItemTests.swift */; };
@@ -63,6 +64,7 @@
 		79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryViewModel.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A04 /* RetentionCleanerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionCleanerTests.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A06 /* ClipboardHistoryViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryViewModelTests.swift; sourceTree = "<group>"; };
+		8BB0EA48158B4A8B9B2D63FF /* SearchWindowPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowPresenter.swift; sourceTree = "<group>"; };
 		7F91D6A3C4B5482B9A102344 /* LoginItemService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemService.swift; sourceTree = "<group>"; };
 		84043D57EB257CEC7C2DD1EF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8A172EDDA8A5FF1218E03D5D /* ClipboardHistoryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClipboardHistoryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -125,6 +127,7 @@
 			children = (
 				DF6487DEAC15726584A5AD54 /* AppEnvironment.swift */,
 				53AF7D8DA531E0C01DEEDF37 /* ClipboardHistoryApp.swift */,
+				8BB0EA48158B4A8B9B2D63FF /* SearchWindowPresenter.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -289,6 +292,7 @@
 				7F91D6A3C4B5482B9A102345 /* LoginItemService.swift in Sources */,
 				727B8E81225C4F5A9FBB3701 /* PasteService.swift in Sources */,
 				79F0B401D0A747D9B0D08A03 /* ClipboardHistoryViewModel.swift in Sources */,
+				8BB0EA48158B4A8B9B2D6400 /* SearchWindowPresenter.swift in Sources */,
 				74294E60A13F4FD4AA940905 /* SettingsViewModel.swift in Sources */,
 				79F0B401D0A747D9B0D08A01 /* RetentionCleaner.swift in Sources */,
 				727B8E81225C4F5A9FBB3703 /* ShortcutService.swift in Sources */,

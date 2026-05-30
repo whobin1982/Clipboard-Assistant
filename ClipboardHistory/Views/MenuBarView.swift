@@ -14,16 +14,6 @@ struct MenuBarView: View {
                 .foregroundStyle(.red)
         }
 
-        if environment.isSearchPresented {
-            ClipboardPopupView(
-                viewModel: environment.historyViewModel,
-                onPaste: environment.paste,
-                onCopy: environment.copy
-            )
-
-            Divider()
-        }
-
         Divider()
 
         RecordMenusView(
