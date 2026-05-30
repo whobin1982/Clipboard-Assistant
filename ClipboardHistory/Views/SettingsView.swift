@@ -40,12 +40,12 @@ private struct SettingsFormView: View {
                         .foregroundStyle(.red)
                 }
 
-                HStack {
-                    Text("Shortcut")
-                    Spacer()
-                    Text(viewModel.shortcutDisplayName)
-                        .foregroundStyle(.secondary)
+                Picker("Shortcut", selection: shortcutID) {
+                    ForEach(viewModel.availableShortcuts) { shortcut in
+                        Text(shortcut.displayName).tag(shortcut.id)
+                    }
                 }
+                .pickerStyle(.menu)
             }
 
             Section("Danger Zone") {
@@ -90,6 +90,13 @@ private struct SettingsFormView: View {
         Binding(
             get: { viewModel.launchAtLogin },
             set: { viewModel.launchAtLogin = $0 }
+        )
+    }
+
+    private var shortcutID: Binding<String> {
+        Binding(
+            get: { viewModel.selectedShortcutID },
+            set: { viewModel.selectedShortcutID = $0 }
         )
     }
 }

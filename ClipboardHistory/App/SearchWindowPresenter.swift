@@ -8,12 +8,14 @@ final class SearchWindowPresenter {
     func show(
         viewModel: ClipboardHistoryViewModel,
         onPaste: @escaping (ClipboardItem) -> Void,
-        onCopy: @escaping (ClipboardItem) -> Void
+        onCopy: @escaping (ClipboardItem) -> Void,
+        onDelete: @escaping (ClipboardItem) -> Void
     ) {
         let contentView = ClipboardPopupView(
             viewModel: viewModel,
             onPaste: onPaste,
-            onCopy: onCopy
+            onCopy: onCopy,
+            onDelete: onDelete
         )
 
         let panel = panel ?? makePanel()

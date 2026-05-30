@@ -5,14 +5,16 @@ final class ShortcutService {
     static let defaultShortcutDisplayName = "Option + Command + V"
 
     var shortcutDisplayName: String {
-        Self.defaultShortcutDisplayName
+        shortcut.displayName
     }
 
     private let openPopup: () -> Void
+    private var shortcut: ShortcutDefinition
     private var globalMonitor: Any?
     private var localMonitor: Any?
 
-    init(openPopup: @escaping () -> Void) {
+    init(shortcut: ShortcutDefinition = .optionCommandV, openPopup: @escaping () -> Void) {
+        self.shortcut = shortcut
         self.openPopup = openPopup
     }
 
@@ -43,20 +45,42 @@ final class ShortcutService {
         }
     }
 
+    func updateShortcut(_ shortcut: ShortcutDefinition) {
+        self.shortcut = shortcut
+    }
+
     func triggerForTesting() {
         openPopup()
     }
 
     @discardableResult
     private func handle(_ event: NSEvent) -> Bool {
-        guard isDefaultShortcut(event) else { return false }
+        guard matchesShortcut(event) else { return false }
         openPopup()
         return true
     }
 
-    private func isDefaultShortcut(_ event: NSEvent) -> Bool {
-        let keyCodeForV: UInt16 = 9
+    private func matchesShortcut(_ event: NSEvent) -> Bool {
         let relevantFlags = event.modifierFlags.intersection([.command, .option, .shift, .control])
-        return event.keyCode == keyCodeForV && relevantFlags == [.command, .option]
+        return event.keyCode == shortcut.keyCode && relevantFlags == shortcut.modifierFlags
+    }
+}
+
+private extension ShortcutDefinition {
+    var modifierFlags: NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        if requiresCommand {
+            flags.insert(.command)
+        }
+        if requiresOption {
+            flags.insert(.option)
+        }
+        if requiresControl {
+            flags.insert(.control)
+        }
+        if requiresShift {
+            flags.insert(.shift)
+        }
+        return flags
     }
 }

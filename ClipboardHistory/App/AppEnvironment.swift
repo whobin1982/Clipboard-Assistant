@@ -16,16 +16,19 @@ final class AppEnvironment: ObservableObject {
     private let store: ClipboardStore
     private let pasteService: PasteService
     private let searchWindowPresenter: SearchWindowPresenter
+    private let imageStorage: ImageStorage?
     private let recordingState: RecordingState
     private var retentionCleaner: RetentionCleaner?
     private var clipboardMonitor: ClipboardMonitor?
     private var shortcutService: ShortcutService?
+    private var retentionCleanupTimer: Timer?
 
     init(
         isRecordingPaused: Bool = false,
         store: ClipboardStore = InMemoryClipboardStore(),
         pasteService: PasteService = PasteService(),
         searchWindowPresenter: SearchWindowPresenter? = nil,
+        imageStorage: ImageStorage? = nil,
         settings: AppSettings = .default,
         storageUsageProvider: @escaping () -> Int64 = { 0 },
         settingsDidChange: @escaping (AppSettings) -> Void = { _ in },
@@ -36,6 +39,7 @@ final class AppEnvironment: ObservableObject {
         self.store = store
         self.pasteService = pasteService
         self.searchWindowPresenter = searchWindowPresenter ?? SearchWindowPresenter()
+        self.imageStorage = imageStorage
         recordingState = RecordingState(isPaused: isRecordingPaused)
         lastErrorMessage = startupErrorMessage
 
@@ -47,15 +51,37 @@ final class AppEnvironment: ObservableObject {
             storageUsageProvider: storageUsageProvider,
             settingsDidChange: settingsDidChange,
             launchAtLoginDidChange: launchAtLoginDidChange,
+            retentionDaysDidChange: { settings in
+                defer { historyViewModel.reload() }
+                try Self.runRetentionCleanup(store: store, imageStorage: imageStorage, settings: settings)
+            },
+            shortcutDidChange: { _ in },
             clearNonFavorites: {
+                let affectedItems = try store.fetchAll().filter { !$0.isFavorite }
+                defer { historyViewModel.reload() }
                 try store.deleteAll(includeFavorites: false)
-                historyViewModel.reload()
+                try Self.cleanupImageFiles(
+                    imageStorage: imageStorage,
+                    deletedItems: affectedItems,
+                    remainingItems: try store.fetchAll()
+                )
             },
             clearAll: {
+                let affectedItems = try store.fetchAll()
+                defer { historyViewModel.reload() }
                 try store.deleteAll(includeFavorites: true)
-                historyViewModel.reload()
+                try Self.cleanupImageFiles(
+                    imageStorage: imageStorage,
+                    deletedItems: affectedItems,
+                    remainingItems: []
+                )
             }
         )
+    }
+
+    deinit {
+        retentionCleanupTimer?.invalidate()
+        shortcutService?.stop()
     }
 
     static func live() -> AppEnvironment {
@@ -77,6 +103,7 @@ final class AppEnvironment: ObservableObject {
             let environment = AppEnvironment(
                 store: store,
                 pasteService: pasteService,
+                imageStorage: imageStorage,
                 settings: settings,
                 storageUsageProvider: {
                     imageStorage.storageUsageBytes()
@@ -92,11 +119,12 @@ final class AppEnvironment: ObservableObject {
             let retentionCleaner = RetentionCleaner(store: store)
             environment.retentionCleaner = retentionCleaner
             do {
-                try retentionCleaner.run(settings: settings)
+                try environment.runRetentionCleanup(settings: settings)
                 environment.historyViewModel.reload()
             } catch {
                 environment.lastErrorMessage = "Retention cleanup failed: \(error.localizedDescription)"
             }
+            environment.startPeriodicRetentionCleanup()
 
             let monitor = ClipboardMonitor(
                 store: store,
@@ -108,10 +136,13 @@ final class AppEnvironment: ObservableObject {
             environment.clipboardMonitor = monitor
             monitor.start()
 
-            let shortcutService = ShortcutService { [weak environment] in
+            let shortcutService = ShortcutService(shortcut: settings.shortcut) { [weak environment] in
                 environment?.openSearch()
             }
             environment.shortcutService = shortcutService
+            environment.settingsViewModel.setShortcutDidChange { [weak shortcutService] shortcut in
+                shortcutService?.updateShortcut(shortcut)
+            }
             shortcutService.start()
 
             return environment
@@ -127,7 +158,8 @@ final class AppEnvironment: ObservableObject {
         searchWindowPresenter.show(
             viewModel: historyViewModel,
             onPaste: paste,
-            onCopy: copy
+            onCopy: copy,
+            onDelete: delete
         )
     }
 
@@ -157,6 +189,23 @@ final class AppEnvironment: ObservableObject {
         }
     }
 
+    func delete(_ item: ClipboardItem) {
+        do {
+            try store.delete(id: item.id)
+            try Self.cleanupImageFiles(
+                imageStorage: imageStorage,
+                deletedItems: [item],
+                remainingItems: try store.fetchAll()
+            )
+            historyViewModel.reload()
+            settingsViewModel.refreshStorageUsage()
+            lastErrorMessage = nil
+        } catch {
+            historyViewModel.reload()
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
     private static func productionAppSupportRoot() throws -> URL {
         let root = FileManager.default.urls(
             for: .applicationSupportDirectory,
@@ -171,6 +220,56 @@ final class AppEnvironment: ObservableObject {
         updatedItem.lastUsedAt = Date()
         try store.insert(updatedItem)
         lastErrorMessage = nil
+    }
+
+    private func startPeriodicRetentionCleanup() {
+        retentionCleanupTimer?.invalidate()
+        retentionCleanupTimer = Timer.scheduledTimer(withTimeInterval: 60 * 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.runScheduledRetentionCleanup()
+            }
+        }
+    }
+
+    private func runScheduledRetentionCleanup() {
+        do {
+            try runRetentionCleanup(settings: settingsViewModel.settings)
+            historyViewModel.reload()
+            settingsViewModel.refreshStorageUsage()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "Retention cleanup failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func runRetentionCleanup(settings: AppSettings) throws {
+        try Self.runRetentionCleanup(store: store, imageStorage: imageStorage, settings: settings)
+    }
+
+    private static func runRetentionCleanup(
+        store: ClipboardStore,
+        imageStorage: ImageStorage?,
+        settings: AppSettings,
+        now: Date = Date()
+    ) throws {
+        let cutoff = now.addingTimeInterval(TimeInterval(-settings.retentionDays * 24 * 60 * 60))
+        let affectedItems = try store.fetchAll().filter { !$0.isFavorite && $0.copiedAt < cutoff }
+        try store.deleteNonFavorites(olderThan: cutoff)
+        try cleanupImageFiles(
+            imageStorage: imageStorage,
+            deletedItems: affectedItems,
+            remainingItems: try store.fetchAll()
+        )
+    }
+
+    private static func cleanupImageFiles(
+        imageStorage: ImageStorage?,
+        deletedItems: [ClipboardItem],
+        remainingItems: [ClipboardItem]
+    ) throws {
+        guard let imageStorage else { return }
+        try imageStorage.deleteFiles(for: deletedItems)
+        try imageStorage.removeOrphanedFiles(referencedBy: remainingItems)
     }
 }
 

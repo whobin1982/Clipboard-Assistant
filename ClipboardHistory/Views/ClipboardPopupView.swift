@@ -5,6 +5,7 @@ struct ClipboardPopupView: View {
 
     var onPaste: (ClipboardItem) -> Void
     var onCopy: (ClipboardItem) -> Void
+    var onDelete: (ClipboardItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -26,7 +27,7 @@ struct ClipboardPopupView: View {
                     ClipboardRowView(
                         item: item,
                         onFavorite: { viewModel.toggleFavorite(item) },
-                        onDelete: { viewModel.delete(item) },
+                        onDelete: { onDelete(item) },
                         onPaste: { onPaste(item) },
                         onCopy: { onCopy(item) }
                     )

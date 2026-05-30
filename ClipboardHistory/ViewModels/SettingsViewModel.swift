@@ -11,6 +11,8 @@ final class SettingsViewModel: ObservableObject {
     private let storageUsageProvider: () -> Int64
     private let settingsDidChange: (AppSettings) -> Void
     private let launchAtLoginDidChange: (Bool) throws -> Void
+    private let retentionDaysDidChange: (AppSettings) throws -> Void
+    private var shortcutDidChange: (ShortcutDefinition) -> Void
 
     init(
         settings: AppSettings = .default,
@@ -18,6 +20,8 @@ final class SettingsViewModel: ObservableObject {
         storageUsageProvider: @escaping () -> Int64 = { 0 },
         settingsDidChange: @escaping (AppSettings) -> Void = { _ in },
         launchAtLoginDidChange: @escaping (Bool) throws -> Void = { _ in },
+        retentionDaysDidChange: @escaping (AppSettings) throws -> Void = { _ in },
+        shortcutDidChange: @escaping (ShortcutDefinition) -> Void = { _ in },
         clearNonFavorites: @escaping () throws -> Void = {},
         clearAll: @escaping () throws -> Void = {}
     ) {
@@ -26,6 +30,8 @@ final class SettingsViewModel: ObservableObject {
         self.storageUsageProvider = storageUsageProvider
         self.settingsDidChange = settingsDidChange
         self.launchAtLoginDidChange = launchAtLoginDidChange
+        self.retentionDaysDidChange = retentionDaysDidChange
+        self.shortcutDidChange = shortcutDidChange
         clearNonFavoritesAction = clearNonFavorites
         clearAllAction = clearAll
     }
@@ -35,6 +41,13 @@ final class SettingsViewModel: ObservableObject {
         set {
             settings.retentionDays = max(1, newValue)
             settingsDidChange(settings)
+            do {
+                try retentionDaysDidChange(settings)
+                refreshStorageUsage()
+                lastErrorMessage = nil
+            } catch {
+                lastErrorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -54,6 +67,21 @@ final class SettingsViewModel: ObservableObject {
 
     var shortcutDisplayName: String {
         settings.shortcutDisplayName
+    }
+
+    var availableShortcuts: [ShortcutDefinition] {
+        ShortcutDefinition.available
+    }
+
+    var selectedShortcutID: String {
+        get { settings.shortcutID }
+        set {
+            let shortcut = ShortcutDefinition.definition(for: newValue)
+            settings.shortcutID = shortcut.id
+            settingsDidChange(settings)
+            shortcutDidChange(shortcut)
+            lastErrorMessage = nil
+        }
     }
 
     var storageUsageDescription: String {
@@ -82,5 +110,9 @@ final class SettingsViewModel: ObservableObject {
 
     func refreshStorageUsage() {
         storageUsageBytes = storageUsageProvider()
+    }
+
+    func setShortcutDidChange(_ handler: @escaping (ShortcutDefinition) -> Void) {
+        shortcutDidChange = handler
     }
 }

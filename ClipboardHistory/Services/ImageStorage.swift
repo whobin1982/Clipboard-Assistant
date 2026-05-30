@@ -29,9 +29,39 @@ final class ImageStorage {
             return total + size
         }
     }
+
+    func deleteFiles(for items: [ClipboardItem]) throws {
+        try imageFileURLs(for: items).forEach(removeFileIfPresent)
+    }
+
+    func removeOrphanedFiles(referencedBy items: [ClipboardItem]) throws {
+        let referencedPaths = Set(imageFileURLs(for: items).map(\.standardizedFileURL.path))
+        let files = try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        )
+
+        for file in files where !referencedPaths.contains(file.standardizedFileURL.path) {
+            try removeFileIfPresent(file)
+        }
+    }
 }
 
 private extension ImageStorage {
+    func imageFileURLs(for items: [ClipboardItem]) -> [URL] {
+        items.flatMap { item in
+            [item.imagePath, item.thumbnailPath].compactMap { path in
+                guard let path, !path.isEmpty else { return nil }
+                return URL(fileURLWithPath: path)
+            }
+        }
+    }
+
+    func removeFileIfPresent(_ url: URL) throws {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
+    }
+
     func thumbnail(from image: NSImage) -> NSImage {
         let targetSize = NSSize(width: 96, height: 96)
         let thumbnail = NSImage(size: targetSize)

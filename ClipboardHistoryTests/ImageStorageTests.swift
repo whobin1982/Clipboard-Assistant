@@ -30,6 +30,40 @@ final class ImageStorageTests: XCTestCase {
         XCTAssertGreaterThan(storage.storageUsageBytes(), 0)
     }
 
+    func testDeleteFilesRemovesOriginalAndThumbnail() throws {
+        let storage = try ImageStorage(directory: temporaryDirectory)
+        let imageURL = temporaryDirectory.appendingPathComponent("item.png")
+        let thumbnailURL = temporaryDirectory.appendingPathComponent("item-thumb.png")
+        try Data("image".utf8).write(to: imageURL)
+        try Data("thumbnail".utf8).write(to: thumbnailURL)
+        let item = ClipboardItem.image(imagePath: imageURL.path, thumbnailPath: thumbnailURL.path)
+
+        try storage.deleteFiles(for: [item])
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: imageURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: thumbnailURL.path))
+    }
+
+    func testRemoveOrphanedFilesKeepsReferencedFiles() throws {
+        let storage = try ImageStorage(directory: temporaryDirectory)
+        let referencedURL = temporaryDirectory.appendingPathComponent("referenced.png")
+        let referencedThumbnailURL = temporaryDirectory.appendingPathComponent("referenced-thumb.png")
+        let orphanURL = temporaryDirectory.appendingPathComponent("orphan.png")
+        try Data("image".utf8).write(to: referencedURL)
+        try Data("thumbnail".utf8).write(to: referencedThumbnailURL)
+        try Data("orphan".utf8).write(to: orphanURL)
+        let item = ClipboardItem.image(
+            imagePath: referencedURL.path,
+            thumbnailPath: referencedThumbnailURL.path
+        )
+
+        try storage.removeOrphanedFiles(referencedBy: [item])
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: referencedURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: referencedThumbnailURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: orphanURL.path))
+    }
+
     private func makeImage(size: NSSize) -> NSImage {
         let image = NSImage(size: size)
         image.lockFocus()
