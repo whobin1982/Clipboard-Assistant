@@ -41,6 +41,7 @@ final class ClipboardMonitor {
     private let interval: TimeInterval
     private var lastProcessedChangeCount: Int
     private var timer: Timer?
+    private(set) var lastError: Error?
 
     init(
         pasteboard: PasteboardReading = SystemPasteboardReader(),
@@ -78,20 +79,34 @@ final class ClipboardMonitor {
 
         let currentChangeCount = pasteboard.changeCount
         guard currentChangeCount != lastProcessedChangeCount else { return }
-        defer {
-            lastProcessedChangeCount = currentChangeCount
-        }
 
         if let string = pasteboard.readString(),
            !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            try? store.insert(.text(string))
+            do {
+                try store.insert(.text(string))
+                markChangeHandled(currentChangeCount)
+            } catch {
+                lastError = error
+            }
             return
         }
 
-        guard let image = pasteboard.readImage() else { return }
+        guard let image = pasteboard.readImage() else {
+            markChangeHandled(currentChangeCount)
+            return
+        }
 
         let id = UUID()
-        guard let paths = try? imageStorage.save(image, id: id) else { return }
+        let paths: (imagePath: String, thumbnailPath: String)
+        do {
+            paths = try imageStorage.save(image, id: id)
+        } catch {
+            // Image encoding/storage failures are intentionally skipped so later
+            // pasteboard changes can still be recorded.
+            markChangeHandled(currentChangeCount)
+            lastError = error
+            return
+        }
         let item = ClipboardItem(
             id: id,
             kind: .image,
@@ -102,6 +117,16 @@ final class ClipboardMonitor {
             imagePath: paths.imagePath,
             thumbnailPath: paths.thumbnailPath
         )
-        try? store.insert(item)
+        do {
+            try store.insert(item)
+            markChangeHandled(currentChangeCount)
+        } catch {
+            lastError = error
+        }
+    }
+
+    private func markChangeHandled(_ changeCount: Int) {
+        lastProcessedChangeCount = changeCount
+        lastError = nil
     }
 }

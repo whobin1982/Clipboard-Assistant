@@ -127,15 +127,71 @@ final class ClipboardMonitorTests: XCTestCase {
 
         pasteboard.changeCount = 2
         monitor.pollOnce()
+        XCTAssertEqual(imageStorage.savedImages.count, 1)
+        XCTAssertTrue(monitor.lastError is CocoaError)
+
+        monitor.pollOnce()
+        XCTAssertEqual(imageStorage.savedImages.count, 1)
+
         pasteboard.changeCount = 3
         pasteboard.string = "recovered"
         pasteboard.image = nil
         imageStorage.error = nil
         monitor.pollOnce()
 
+        XCTAssertNil(monitor.lastError)
         XCTAssertEqual(store.insertedItems.count, 1)
         XCTAssertEqual(store.insertedItems[0].kind, .text)
         XCTAssertEqual(store.insertedItems[0].text, "recovered")
+    }
+
+    func testTextStoreInsertFailureRetriesSameChangeCountOnNextPoll() {
+        let pasteboard = FakePasteboard(changeCount: 1, string: "retry me")
+        let store = FakeClipboardStore(error: TestError.insertFailed)
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: FakeImageStorage(),
+            isRecordingPaused: { false }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+        XCTAssertTrue(monitor.lastError is TestError)
+
+        store.error = nil
+        monitor.pollOnce()
+
+        XCTAssertNil(monitor.lastError)
+        XCTAssertEqual(store.insertedItems.count, 1)
+        XCTAssertEqual(store.insertedItems[0].kind, .text)
+        XCTAssertEqual(store.insertedItems[0].text, "retry me")
+    }
+
+    func testImageStoreInsertFailureRetriesSameChangeCountOnNextPoll() {
+        let pasteboard = FakePasteboard(changeCount: 1, image: makeImage())
+        let store = FakeClipboardStore(error: TestError.insertFailed)
+        let imageStorage = FakeImageStorage(result: ("/tmp/retry.png", "/tmp/retry-thumb.png"))
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: imageStorage,
+            isRecordingPaused: { false }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+        XCTAssertTrue(monitor.lastError is TestError)
+
+        store.error = nil
+        monitor.pollOnce()
+
+        XCTAssertNil(monitor.lastError)
+        XCTAssertEqual(imageStorage.savedImages.count, 2)
+        XCTAssertEqual(store.insertedItems.count, 1)
+        XCTAssertEqual(store.insertedItems[0].kind, .image)
+        XCTAssertEqual(store.insertedItems[0].imagePath, "/tmp/retry.png")
+        XCTAssertEqual(store.insertedItems[0].thumbnailPath, "/tmp/retry-thumb.png")
     }
 
     private func makeImage() -> NSImage {
@@ -189,8 +245,16 @@ private final class FakeImageStorage: ImageStoring {
 
 private final class FakeClipboardStore: ClipboardStore {
     private(set) var insertedItems: [ClipboardItem] = []
+    var error: Error?
+
+    init(error: Error? = nil) {
+        self.error = error
+    }
 
     func insert(_ item: ClipboardItem) throws {
+        if let error {
+            throw error
+        }
         insertedItems.append(item)
     }
 
@@ -207,4 +271,8 @@ private final class FakeClipboardStore: ClipboardStore {
     func deleteAll(includeFavorites: Bool) throws {
         insertedItems.removeAll()
     }
+}
+
+private enum TestError: Error {
+    case insertFailed
 }
