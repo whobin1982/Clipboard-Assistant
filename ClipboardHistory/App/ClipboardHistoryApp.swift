@@ -60,21 +60,35 @@ private final class StatusItemController: NSObject {
 
     init(environment: AppEnvironment) {
         self.environment = environment
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: 34)
         super.init()
         configureStatusButton()
     }
 
     private func configureStatusButton() {
         guard let button = statusItem.button else { return }
-        button.image = NSImage(
-            systemSymbolName: "doc.on.clipboard",
-            accessibilityDescription: "剪贴板历史"
-        )
+        button.image = Self.statusBarIcon()
+        button.imageScaling = .scaleNone
         button.toolTip = "剪贴板历史"
         button.target = self
         button.action = #selector(statusItemClicked(_:))
         button.sendAction(on: [.leftMouseDown, .leftMouseUp, .rightMouseDown])
+    }
+
+    private static func statusBarIcon() -> NSImage {
+        if
+            let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+            let image = NSImage(contentsOf: url)
+        {
+            image.size = NSSize(width: 26, height: 26)
+            image.isTemplate = false
+            return image
+        }
+
+        return NSImage(
+            systemSymbolName: "doc.on.clipboard",
+            accessibilityDescription: "剪贴板历史"
+        ) ?? NSImage()
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
