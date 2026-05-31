@@ -20,22 +20,28 @@ struct ClipboardPopupView: View {
 
     /// 弹窗内容布局：顶部操作栏，中间错误或空状态，底部历史列表。
     var body: some View {
+        let visibleItems = viewModel.filteredItems
+
         VStack(alignment: .leading, spacing: 10) {
             KeyEventHandlingView(
                 onDownArrow: {
-                    selectionController.moveDown(in: viewModel.filteredItems)
+                    selectionController.moveDown(in: visibleItems)
                 },
                 onUpArrow: {
-                    selectionController.moveUp(in: viewModel.filteredItems)
+                    selectionController.moveUp(in: visibleItems)
                 },
                 onReturn: {
-                    guard let item = selectionController.selectedItem(in: viewModel.filteredItems) else { return }
+                    guard let item = selectionController.selectedItem(in: visibleItems) else { return }
                     onPaste(item)
                 },
                 onEscape: {
                     if escapeClosesWindow {
                         onClose()
                     }
+                },
+                onNumberShortcut: { number in
+                    guard let item = selectionController.selectNumberShortcut(number, in: visibleItems) else { return }
+                    onPaste(item)
                 }
             )
             .frame(width: 0, height: 0)
@@ -70,6 +76,17 @@ struct ClipboardPopupView: View {
                 .controlSize(.small)
                 .help("打开设置")
 
+                Picker("记录类型", selection: $viewModel.filter) {
+                    ForEach(ClipboardHistoryFilter.allCases) { filter in
+                        Text(filter.title).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .controlSize(.small)
+                .frame(width: 210)
+                .help("按记录类型筛选")
+
                 Spacer(minLength: 12)
 
                 TextField("搜索剪贴板历史", text: $viewModel.query)
@@ -84,13 +101,14 @@ struct ClipboardPopupView: View {
                     .lineLimit(2)
             }
 
-            if viewModel.filteredItems.isEmpty {
+            if visibleItems.isEmpty {
                 ContentUnavailableView("暂无剪贴板记录", systemImage: "doc.on.clipboard")
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                List(viewModel.filteredItems) { item in
+                List(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
                     ClipboardRowView(
                         item: item,
+                        shortcutNumber: index < 9 ? index + 1 : nil,
                         isSelected: selectionController.selectedItemID == item.id,
                         onFavorite: { viewModel.toggleFavorite(item) },
                         onDelete: { onDelete(item) },
@@ -183,6 +201,7 @@ private struct KeyEventHandlingView: NSViewRepresentable {
     let onUpArrow: () -> Void
     let onReturn: () -> Void
     let onEscape: () -> Void
+    let onNumberShortcut: (Int) -> Void
 
     /// 创建原生 NSView 并安装本地键盘事件监听。
     func makeNSView(context: Context) -> KeyEventMonitorView {
@@ -198,6 +217,7 @@ private struct KeyEventHandlingView: NSViewRepresentable {
         nsView.onUpArrow = onUpArrow
         nsView.onReturn = onReturn
         nsView.onEscape = onEscape
+        nsView.onNumberShortcut = onNumberShortcut
     }
 
     /// 视图销毁时移除监听。
@@ -212,6 +232,7 @@ private final class KeyEventMonitorView: NSView {
     var onUpArrow: () -> Void = {}
     var onReturn: () -> Void = {}
     var onEscape: () -> Void = {}
+    var onNumberShortcut: (Int) -> Void = { _ in }
 
     private var monitor: Any?
 
@@ -225,6 +246,14 @@ private final class KeyEventMonitorView: NSView {
                 event.window === window
             else {
                 return event
+            }
+
+            if
+                let number = Self.numberShortcut(from: event),
+                !Self.isEditingText(in: window)
+            {
+                self.onNumberShortcut(number)
+                return nil
             }
 
             switch event.keyCode {
@@ -252,5 +281,39 @@ private final class KeyEventMonitorView: NSView {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
         }
+    }
+
+    /// 只处理没有组合键修饰的 1-9 数字键，包含主键盘和数字小键盘。
+    private static func numberShortcut(from event: NSEvent) -> Int? {
+        let meaningfulModifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        guard meaningfulModifiers.isEmpty else { return nil }
+
+        switch event.keyCode {
+        case 18, 83:
+            return 1
+        case 19, 84:
+            return 2
+        case 20, 85:
+            return 3
+        case 21, 86:
+            return 4
+        case 23, 87:
+            return 5
+        case 22, 88:
+            return 6
+        case 26, 89:
+            return 7
+        case 28, 91:
+            return 8
+        case 25, 92:
+            return 9
+        default:
+            return nil
+        }
+    }
+
+    /// 搜索框正在输入时不截获数字键，避免用户无法搜索包含数字的内容。
+    private static func isEditingText(in window: NSWindow) -> Bool {
+        window.firstResponder is NSTextView
     }
 }

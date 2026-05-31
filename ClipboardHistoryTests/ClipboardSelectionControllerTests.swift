@@ -40,4 +40,29 @@ final class ClipboardSelectionControllerTests: XCTestCase {
 
         XCTAssertNil(controller.selectedItemID)
     }
+
+    /// 数字键快捷选择使用当前可见列表的 1-9 顺序，并返回被选中的记录。
+    func testNumberShortcutSelectsVisibleItemByOneBasedIndex() {
+        let first = ClipboardItem.text("first")
+        let second = ClipboardItem.text("second")
+        let third = ClipboardItem.text("third")
+        let controller = ClipboardSelectionController()
+
+        let selected = controller.selectNumberShortcut(2, in: [first, second, third])
+
+        XCTAssertEqual(selected?.id, second.id)
+        XCTAssertEqual(controller.selectedItemID, second.id)
+    }
+
+    /// 超出当前列表范围的数字键不应改变已有选择。
+    func testNumberShortcutIgnoresOutOfRangeNumbers() {
+        let first = ClipboardItem.text("first")
+        let controller = ClipboardSelectionController()
+        controller.moveDown(in: [first])
+
+        let selected = controller.selectNumberShortcut(9, in: [first])
+
+        XCTAssertNil(selected)
+        XCTAssertEqual(controller.selectedItemID, first.id)
+    }
 }

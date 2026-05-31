@@ -49,6 +49,18 @@ final class ClipboardSelectionController: ObservableObject {
         return items.first { $0.id == selectedItemID }
     }
 
+    /// 根据 1-9 数字键选择当前可见列表中的对应记录，并返回这条记录给调用方执行粘贴。
+    @discardableResult
+    func selectNumberShortcut(_ number: Int, in items: [ClipboardItem]) -> ClipboardItem? {
+        guard (1...9).contains(number) else { return nil }
+        let index = number - 1
+        guard items.indices.contains(index) else { return nil }
+
+        let item = items[index]
+        selectedItemID = item.id
+        return item
+    }
+
     /// 搜索结果刷新后，如果原选中项不在列表里，则清空选择。
     func reconcileSelection(with items: [ClipboardItem]) {
         guard let selectedItemID else { return }

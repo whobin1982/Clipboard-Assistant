@@ -4,6 +4,7 @@ import SwiftUI
 /// 历史列表中的单行记录，支持预览、粘贴、复制、收藏和删除。
 struct ClipboardRowView: View {
     let item: ClipboardItem
+    let shortcutNumber: Int?
     let isSelected: Bool
     let onFavorite: () -> Void
     let onDelete: () -> Void
@@ -29,6 +30,8 @@ struct ClipboardRowView: View {
     private var rowContent: some View {
         Button(action: onPaste) {
             HStack(alignment: .top, spacing: 10) {
+                shortcutBadge
+
                 preview
                     .frame(width: 42, height: 42)
                     .background(Color(nsColor: .controlBackgroundColor))
@@ -57,6 +60,25 @@ struct ClipboardRowView: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 前 9 条可见记录显示数字快捷键提示。
+    private var shortcutBadge: some View {
+        Group {
+            if let shortcutNumber {
+                Text("\(shortcutNumber)")
+                    .font(.caption2)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 20)
+                    .background(Color(nsColor: .quaternaryLabelColor).opacity(0.16))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                Color.clear
+                    .frame(width: 20, height: 20)
+            }
+        }
+        .padding(.top, 11)
     }
 
     /// 行内工具按钮区。
