@@ -65,4 +65,40 @@ final class ClipboardSelectionControllerTests: XCTestCase {
         XCTAssertNil(selected)
         XCTAssertEqual(controller.selectedItemID, first.id)
     }
+
+    /// 搜索框为空时，即使焦点在搜索框里，数字键也应优先作为快速选择。
+    func testKeyboardShortcutUsesNumberWhenSearchFieldIsEmpty() {
+        let shortcut = ClipboardKeyboardShortcut.numberShortcut(
+            keyCode: 18,
+            modifierFlags: [],
+            searchQuery: "",
+            isTextEditing: true
+        )
+
+        XCTAssertEqual(shortcut, 1)
+    }
+
+    /// 搜索框已有内容时，数字键应继续交给搜索框输入，方便搜索含数字的内容。
+    func testKeyboardShortcutLetsSearchFieldKeepNumbersWhenQueryIsNotEmpty() {
+        let shortcut = ClipboardKeyboardShortcut.numberShortcut(
+            keyCode: 19,
+            modifierFlags: [],
+            searchQuery: "订单",
+            isTextEditing: true
+        )
+
+        XCTAssertNil(shortcut)
+    }
+
+    /// 只要不在文本输入状态，数字键应始终作为快速选择。
+    func testKeyboardShortcutUsesNumberWhenNotEditingText() {
+        let shortcut = ClipboardKeyboardShortcut.numberShortcut(
+            keyCode: 84,
+            modifierFlags: [],
+            searchQuery: "订单",
+            isTextEditing: false
+        )
+
+        XCTAssertEqual(shortcut, 2)
+    }
 }

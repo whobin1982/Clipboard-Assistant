@@ -39,6 +39,7 @@ struct ClipboardPopupView: View {
                         onClose()
                     }
                 },
+                searchQuery: viewModel.query,
                 onNumberShortcut: { number in
                     guard let item = selectionController.selectNumberShortcut(number, in: visibleItems) else { return }
                     onPaste(item)
@@ -76,6 +77,14 @@ struct ClipboardPopupView: View {
                 .controlSize(.small)
                 .help("打开设置")
 
+                Spacer(minLength: 12)
+
+                TextField("搜索剪贴板历史", text: $viewModel.query)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minWidth: 180, maxWidth: 260)
+            }
+
+            HStack(spacing: 8) {
                 Picker("记录类型", selection: $viewModel.filter) {
                     ForEach(ClipboardHistoryFilter.allCases) { filter in
                         Text(filter.title).tag(filter)
@@ -84,14 +93,10 @@ struct ClipboardPopupView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .controlSize(.small)
-                .frame(width: 210)
+                .frame(width: 320)
                 .help("按记录类型筛选")
 
-                Spacer(minLength: 12)
-
-                TextField("搜索剪贴板历史", text: $viewModel.query)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 160, maxWidth: 220)
+                Spacer()
             }
 
             if let message = viewModel.lastErrorMessage {
@@ -201,6 +206,7 @@ private struct KeyEventHandlingView: NSViewRepresentable {
     let onUpArrow: () -> Void
     let onReturn: () -> Void
     let onEscape: () -> Void
+    let searchQuery: String
     let onNumberShortcut: (Int) -> Void
 
     /// 创建原生 NSView 并安装本地键盘事件监听。
@@ -217,6 +223,7 @@ private struct KeyEventHandlingView: NSViewRepresentable {
         nsView.onUpArrow = onUpArrow
         nsView.onReturn = onReturn
         nsView.onEscape = onEscape
+        nsView.searchQuery = searchQuery
         nsView.onNumberShortcut = onNumberShortcut
     }
 
@@ -232,6 +239,7 @@ private final class KeyEventMonitorView: NSView {
     var onUpArrow: () -> Void = {}
     var onReturn: () -> Void = {}
     var onEscape: () -> Void = {}
+    var searchQuery: String = ""
     var onNumberShortcut: (Int) -> Void = { _ in }
 
     private var monitor: Any?
@@ -249,8 +257,12 @@ private final class KeyEventMonitorView: NSView {
             }
 
             if
-                let number = Self.numberShortcut(from: event),
-                !Self.isEditingText(in: window)
+                let number = ClipboardKeyboardShortcut.numberShortcut(
+                    keyCode: event.keyCode,
+                    modifierFlags: event.modifierFlags,
+                    searchQuery: self.searchQuery,
+                    isTextEditing: Self.isEditingText(in: window)
+                )
             {
                 self.onNumberShortcut(number)
                 return nil
@@ -283,36 +295,7 @@ private final class KeyEventMonitorView: NSView {
         }
     }
 
-    /// 只处理没有组合键修饰的 1-9 数字键，包含主键盘和数字小键盘。
-    private static func numberShortcut(from event: NSEvent) -> Int? {
-        let meaningfulModifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
-        guard meaningfulModifiers.isEmpty else { return nil }
-
-        switch event.keyCode {
-        case 18, 83:
-            return 1
-        case 19, 84:
-            return 2
-        case 20, 85:
-            return 3
-        case 21, 86:
-            return 4
-        case 23, 87:
-            return 5
-        case 22, 88:
-            return 6
-        case 26, 89:
-            return 7
-        case 28, 91:
-            return 8
-        case 25, 92:
-            return 9
-        default:
-            return nil
-        }
-    }
-
-    /// 搜索框正在输入时不截获数字键，避免用户无法搜索包含数字的内容。
+    /// 判断当前焦点是否在搜索框等文本编辑控件中，交给快捷键解析器决定是否截获数字。
     private static func isEditingText(in window: NSWindow) -> Bool {
         window.firstResponder is NSTextView
     }
