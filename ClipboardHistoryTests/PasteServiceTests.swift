@@ -149,29 +149,52 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertEqual(archive.items[1], [ClipboardImagePayload(data: jpegData, pasteboardType: jpegType)])
     }
 
-    func testSystemPasteboardReaderIgnoresImageFileURL() throws {
+    func testSystemPasteboardReaderReadsImageFileURLContents() throws {
         let imageURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("png")
-        try XCTUnwrap(makeTestImage().pngData).write(to: imageURL)
+        let imageData = try XCTUnwrap(makeTestImage().pngData)
+        try imageData.write(to: imageURL)
         defer { try? FileManager.default.removeItem(at: imageURL) }
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         pasteboard.clearContents()
         pasteboard.writeObjects([imageURL as NSURL])
         let reader = SystemPasteboardReader(pasteboard: pasteboard)
 
-        XCTAssertNil(reader.readImageArchive())
+        let archive = try XCTUnwrap(reader.readImageArchive())
+        XCTAssertEqual(archive.items, [[ClipboardImagePayload(data: imageData, pasteboardType: .png)]])
     }
 
-    func testSystemPasteboardReaderIgnoresFilePasteboardEvenWhenItAlsoContainsImageIcon() throws {
+    func testSystemPasteboardReaderReadsImageFileURLContentsInsteadOfFileIcon() throws {
         let imageURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("png")
-        try XCTUnwrap(makeTestImage().pngData).write(to: imageURL)
+        let imageData = try XCTUnwrap(makeTestImage().pngData)
+        try imageData.write(to: imageURL)
         defer { try? FileManager.default.removeItem(at: imageURL) }
         let iconData = try XCTUnwrap(makeTestImage(size: NSSize(width: 1024, height: 1024)).tiffRepresentation)
         let fileItem = NSPasteboardItem()
         fileItem.setString(imageURL.absoluteString, forType: .fileURL)
+        let iconItem = NSPasteboardItem()
+        iconItem.setData(iconData, forType: .tiff)
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        pasteboard.clearContents()
+        XCTAssertTrue(pasteboard.writeObjects([fileItem, iconItem]))
+        let reader = SystemPasteboardReader(pasteboard: pasteboard)
+
+        let archive = try XCTUnwrap(reader.readImageArchive())
+        XCTAssertEqual(archive.items, [[ClipboardImagePayload(data: imageData, pasteboardType: .png)]])
+    }
+
+    func testSystemPasteboardReaderIgnoresNonImageFileURLEvenWhenItAlsoContainsImageIcon() throws {
+        let textURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("txt")
+        try Data("not an image".utf8).write(to: textURL)
+        defer { try? FileManager.default.removeItem(at: textURL) }
+        let iconData = try XCTUnwrap(makeTestImage(size: NSSize(width: 1024, height: 1024)).tiffRepresentation)
+        let fileItem = NSPasteboardItem()
+        fileItem.setString(textURL.absoluteString, forType: .fileURL)
         let iconItem = NSPasteboardItem()
         iconItem.setData(iconData, forType: .tiff)
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))

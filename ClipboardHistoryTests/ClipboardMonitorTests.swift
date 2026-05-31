@@ -144,7 +144,6 @@ final class ClipboardMonitorTests: XCTestCase {
         let pasteboard = FakePasteboard(
             changeCount: 1,
             string: "copied-file.png",
-            image: makeImage(),
             containsFileReference: true
         )
         let store = FakeClipboardStore()
@@ -163,6 +162,33 @@ final class ClipboardMonitorTests: XCTestCase {
 
         XCTAssertTrue(imageStorage.savedArchives.isEmpty)
         XCTAssertTrue(store.insertedItems.isEmpty)
+    }
+
+    func testImageFilePasteboardRecordsImageAndDoesNotInsertFileNameText() throws {
+        let image = makeImage()
+        let pasteboard = FakePasteboard(
+            changeCount: 1,
+            string: "copied-file.png",
+            image: image,
+            containsFileReference: true
+        )
+        let store = FakeClipboardStore()
+        let imageStorage = FakeImageStorage(result: ("/tmp/file-image.clipboardimage", "/tmp/file-image-thumb.png"))
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: imageStorage,
+            isRecordingPaused: { false }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+
+        XCTAssertEqual(imageStorage.savedArchives.count, 1)
+        XCTAssertEqual(imageStorage.savedArchives[0].items[0][0].data, try XCTUnwrap(image.pngData))
+        XCTAssertEqual(store.insertedItems.count, 1)
+        XCTAssertEqual(store.insertedItems[0].kind, .image)
+        XCTAssertNil(store.insertedItems[0].text)
     }
 
     func testWhitespaceOnlyTextDoesNotInsert() {

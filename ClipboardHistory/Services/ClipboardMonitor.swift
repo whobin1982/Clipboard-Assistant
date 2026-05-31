@@ -163,8 +163,8 @@ final class SystemPasteboardReader: PasteboardReading {
     }
 
     func readImageArchive() -> ClipboardImageArchive? {
-        guard !hasFileReference() else {
-            return nil
+        if hasFileReference() {
+            return readImageFileArchive()
         }
 
         let imageItems = pasteboard.pasteboardItems?.compactMap { item -> [ClipboardImagePayload]? in
@@ -220,6 +220,80 @@ final class SystemPasteboardReader: PasteboardReading {
             return ClipboardImagePayload(data: imageData, pasteboardType: type)
         }
         return nil
+    }
+
+    private func readImageFileArchive() -> ClipboardImageArchive? {
+        let payloadItems = fileURLsFromPasteboard().compactMap { url -> [ClipboardImagePayload]? in
+            guard let payload = imagePayload(fromFileURL: url) else {
+                return nil
+            }
+            return [payload]
+        }
+
+        return payloadItems.isEmpty ? nil : ClipboardImageArchive(items: payloadItems)
+    }
+
+    private func fileURLsFromPasteboard() -> [URL] {
+        var urls: [URL] = []
+
+        let objectURLs = pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        )?.compactMap { object -> URL? in
+            if let url = object as? URL {
+                return url
+            }
+            if let url = object as? NSURL {
+                return url as URL
+            }
+            return nil
+        } ?? []
+        urls.append(contentsOf: objectURLs)
+
+        pasteboard.pasteboardItems?.forEach { item in
+            if let url = fileURL(from: item.string(forType: .fileURL)) {
+                urls.append(url)
+            }
+
+            let filenamesType = NSPasteboard.PasteboardType("NSFilenamesPboardType")
+            if item.types.contains(filenamesType),
+               let paths = item.propertyList(forType: filenamesType) as? [String] {
+                urls.append(contentsOf: paths.map(URL.init(fileURLWithPath:)))
+            }
+        }
+
+        var seen: Set<String> = []
+        return urls.filter { url in
+            guard url.isFileURL else { return false }
+            return seen.insert(url.standardizedFileURL.path).inserted
+        }
+    }
+
+    private func fileURL(from value: String?) -> URL? {
+        guard let value, !value.isEmpty else {
+            return nil
+        }
+
+        if let url = URL(string: value), url.isFileURL {
+            return url
+        }
+
+        return URL(fileURLWithPath: value)
+    }
+
+    private func imagePayload(fromFileURL url: URL) -> ClipboardImagePayload? {
+        guard
+            let data = try? Data(contentsOf: url),
+            !data.isEmpty
+        else {
+            return nil
+        }
+
+        let payload = ClipboardImagePayload(
+            data: data,
+            pasteboardType: ClipboardImagePayload.pasteboardType(forFileExtension: url.pathExtension)
+        )
+        return payload.image == nil ? nil : payload
     }
 }
 
@@ -279,13 +353,13 @@ final class ClipboardMonitor {
             return
         }
 
-        if pasteboard.hasFileReference() {
-            markChangeHandled(currentChangeCount)
+        if let imageArchive = pasteboard.readImageArchive() {
+            recordImage(imageArchive, changeCount: currentChangeCount)
             return
         }
 
-        if let imageArchive = pasteboard.readImageArchive() {
-            recordImage(imageArchive, changeCount: currentChangeCount)
+        if pasteboard.hasFileReference() {
+            markChangeHandled(currentChangeCount)
             return
         }
 
