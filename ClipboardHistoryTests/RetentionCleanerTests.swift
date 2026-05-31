@@ -2,7 +2,9 @@ import Foundation
 import XCTest
 @testable import ClipboardHistory
 
+/// 验证保留期清理只删除过期且未收藏的记录。
 final class RetentionCleanerTests: XCTestCase {
+    /// 超过保留期的非收藏记录会被删除，收藏和近期记录会保留。
     func testRunDeletesOnlyNonFavoritesOlderThanRetentionCutoff() throws {
         let now = Date(timeIntervalSince1970: 1_000_000)
         let oldDate = now.addingTimeInterval(-31 * 24 * 60 * 60)
@@ -24,6 +26,7 @@ final class RetentionCleanerTests: XCTestCase {
         XCTAssertEqual(remainingIDs, [oldFavorite.id, recentRegular.id])
     }
 
+    /// 永久保留策略不会触发删除。
     func testRunKeepsAllItemsWhenRetentionIsForever() throws {
         let oldItem = ClipboardItem.text("old", copiedAt: Date(timeIntervalSince1970: 0))
         let store = RetentionCleanerFakeStore(items: [oldItem])
@@ -38,6 +41,7 @@ final class RetentionCleanerTests: XCTestCase {
     }
 }
 
+/// RetentionCleaner 测试用存储，记录删除 cutoff 并模拟删除结果。
 private final class RetentionCleanerFakeStore: ClipboardStore {
     private var items: [ClipboardItem]
     private(set) var deletedOlderThan: Date?

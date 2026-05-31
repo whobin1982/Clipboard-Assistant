@@ -2,15 +2,18 @@ import AppKit
 import XCTest
 @testable import ClipboardHistory
 
+/// 验证图片归档、缩略图、空间统计和孤儿文件清理。
 final class ImageStorageTests: XCTestCase {
     private var temporaryDirectory: URL!
 
+    /// 每个测试使用独立临时目录，避免相互污染。
     override func setUpWithError() throws {
         try super.setUpWithError()
         temporaryDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ImageStorageTests-\(UUID().uuidString)", isDirectory: true)
     }
 
+    /// 测试结束后删除临时目录。
     override func tearDownWithError() throws {
         if let temporaryDirectory {
             try? FileManager.default.removeItem(at: temporaryDirectory)
@@ -19,6 +22,7 @@ final class ImageStorageTests: XCTestCase {
         try super.tearDownWithError()
     }
 
+    /// 保存图片时应写入完整归档、缩略图并能统计空间。
     func testSaveWritesArchiveThumbnailAndReportsUsage() throws {
         let storage = try ImageStorage(directory: temporaryDirectory)
         let imageData = try XCTUnwrap(makeImage(size: NSSize(width: 100, height: 100)).pngData)
@@ -38,6 +42,7 @@ final class ImageStorageTests: XCTestCase {
         XCTAssertGreaterThan(storage.storageUsageBytes(), 0)
     }
 
+    /// 删除图片记录时应移除原图归档和缩略图。
     func testDeleteFilesRemovesOriginalAndThumbnail() throws {
         let storage = try ImageStorage(directory: temporaryDirectory)
         let imageURL = temporaryDirectory.appendingPathComponent("item.png")
@@ -52,6 +57,7 @@ final class ImageStorageTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: thumbnailURL.path))
     }
 
+    /// 清理孤儿文件时应保留仍被记录引用的文件。
     func testRemoveOrphanedFilesKeepsReferencedFiles() throws {
         let storage = try ImageStorage(directory: temporaryDirectory)
         let referencedURL = temporaryDirectory.appendingPathComponent("referenced.png")
@@ -72,6 +78,7 @@ final class ImageStorageTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: orphanURL.path))
     }
 
+    /// 创建测试用纯色图片。
     private func makeImage(size: NSSize) -> NSImage {
         let image = NSImage(size: size)
         image.lockFocus()

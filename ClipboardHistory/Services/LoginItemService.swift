@@ -1,6 +1,7 @@
 import Foundation
 import ServiceManagement
 
+/// 开机自启动功能可能因为系统版本过低而不可用。
 enum LoginItemServiceError: LocalizedError {
     case unsupportedOperatingSystem
 
@@ -12,7 +13,9 @@ enum LoginItemServiceError: LocalizedError {
     }
 }
 
+/// 封装 ServiceManagement 的开机自动启动状态读写。
 final class LoginItemService {
+    /// 查询当前应用是否已经注册为登录项。
     func isEnabled() throws -> Bool {
         guard #available(macOS 13.0, *) else {
             throw LoginItemServiceError.unsupportedOperatingSystem
@@ -21,6 +24,7 @@ final class LoginItemService {
         return SMAppService.mainApp.status == .enabled
     }
 
+    /// 注册或取消注册登录项；状态未变化时不重复调用系统 API。
     func setEnabled(_ isEnabled: Bool) throws {
         guard #available(macOS 13.0, *) else {
             throw LoginItemServiceError.unsupportedOperatingSystem

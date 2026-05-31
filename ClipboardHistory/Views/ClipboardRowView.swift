@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+/// 历史列表中的单行记录，支持预览、粘贴、复制、收藏和删除。
 struct ClipboardRowView: View {
     let item: ClipboardItem
     let isSelected: Bool
@@ -9,6 +10,7 @@ struct ClipboardRowView: View {
     let onPaste: () -> Void
     let onCopy: () -> Void
 
+    /// 行布局：左侧内容区域，右侧快捷操作按钮。
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             rowContent
@@ -23,6 +25,7 @@ struct ClipboardRowView: View {
         )
     }
 
+    /// 可点击的主体内容，点击后执行粘贴。
     private var rowContent: some View {
         Button(action: onPaste) {
             HStack(alignment: .top, spacing: 10) {
@@ -56,6 +59,7 @@ struct ClipboardRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// 行内工具按钮区。
     private var actionButtons: some View {
         HStack(spacing: 4) {
             Button(action: onPaste) {
@@ -82,6 +86,7 @@ struct ClipboardRowView: View {
         .imageScale(.medium)
     }
 
+    /// 文本记录显示文本图标，图片记录优先显示缩略图。
     @ViewBuilder
     private var preview: some View {
         switch item.kind {
@@ -102,6 +107,7 @@ struct ClipboardRowView: View {
         }
     }
 
+    /// 列表主标题；图片记录统一显示“图片”。
     private var title: String {
         switch item.kind {
         case .text:
@@ -112,6 +118,7 @@ struct ClipboardRowView: View {
         }
     }
 
+    /// 从磁盘读取缩略图。
     private var thumbnailImage: NSImage? {
         guard let thumbnailPath = item.thumbnailPath else { return nil }
         return NSImage(contentsOfFile: thumbnailPath)

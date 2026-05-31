@@ -1,9 +1,11 @@
 import AppKit
 import SwiftUI
 
+/// 旧版 SwiftUI 菜单栏内容视图，保留给未来如果改回 MenuBarExtra 时复用。
 struct MenuBarView: View {
     @EnvironmentObject private var environment: AppEnvironment
 
+    /// 菜单内容：打开历史、错误提示、记录子菜单、开关、清理、设置、帮助、关于和退出。
     var body: some View {
         Button("打开剪贴板历史") {
             environment.openSearch()
@@ -61,6 +63,7 @@ struct MenuBarView: View {
         }
     }
 
+    /// 清空非收藏记录前确认。
     private func confirmClearNonFavorites() {
         guard confirmClear(
             title: "清空非收藏记录？",
@@ -73,6 +76,7 @@ struct MenuBarView: View {
         environment.settingsViewModel.clearNonFavorites()
     }
 
+    /// 清空全部记录前确认。
     private func confirmClearAll() {
         guard confirmClear(
             title: "清空全部记录？",
@@ -85,6 +89,7 @@ struct MenuBarView: View {
         environment.settingsViewModel.clearAll()
     }
 
+    /// 通用确认弹窗。
     private func confirmClear(title: String, message: String, confirmTitle: String) -> Bool {
         let alert = NSAlert()
         alert.messageText = title
@@ -96,10 +101,12 @@ struct MenuBarView: View {
     }
 }
 
+/// 最近记录和收藏记录两个子菜单。
 private struct RecordMenusView: View {
     @ObservedObject var viewModel: ClipboardHistoryViewModel
     let onPaste: (ClipboardItem) -> Void
 
+    /// 分别展示最近 8 条和全部收藏记录。
     var body: some View {
         Menu("最近记录") {
             recordButtons(for: Array(viewModel.items.prefix(8)))
@@ -110,6 +117,7 @@ private struct RecordMenusView: View {
         }
     }
 
+    /// 将记录数组渲染成菜单按钮；空列表显示占位文案。
     @ViewBuilder
     private func recordButtons(for items: [ClipboardItem]) -> some View {
         if items.isEmpty {
@@ -124,6 +132,7 @@ private struct RecordMenusView: View {
         }
     }
 
+    /// 菜单标题做截断，避免系统菜单过宽。
     private func menuTitle(for item: ClipboardItem) -> String {
         switch item.kind {
         case .text:

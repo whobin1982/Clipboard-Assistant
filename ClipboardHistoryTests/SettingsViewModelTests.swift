@@ -3,8 +3,10 @@ import SwiftUI
 import XCTest
 @testable import ClipboardHistory
 
+/// 验证设置视图模型会正确保存设置，并通知相关服务。
 @MainActor
 final class SettingsViewModelTests: XCTestCase {
+    /// 选择预设快捷键时应持久化并通知快捷键服务。
     func testSelectingShortcutPersistsAndNotifiesShortcutService() {
         var savedSettings: [AppSettings] = []
         var updatedShortcuts: [ShortcutDefinition] = []
@@ -20,6 +22,7 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(updatedShortcuts.last, .controlOptionV)
     }
 
+    /// 应用自定义快捷键时应保存到 customShortcut，并通知快捷键服务。
     func testApplyingCustomShortcutPersistsAndNotifiesShortcutService() {
         var savedSettings: [AppSettings] = []
         var updatedShortcuts: [ShortcutDefinition] = []
@@ -44,6 +47,7 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(updatedShortcuts.last, shortcut)
     }
 
+    /// 已存在自定义快捷键时，再次选择 custom id 不应丢失录制结果。
     func testSelectingExistingCustomShortcutKeepsRecordedShortcut() {
         var updatedShortcuts: [ShortcutDefinition] = []
         let shortcut = ShortcutDefinition.custom(
@@ -70,6 +74,7 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(updatedShortcuts.last, shortcut)
     }
 
+    /// 改变“点击后动作”应写入设置。
     func testChangingSelectionActionPersistsSettings() {
         var savedSettings: [AppSettings] = []
         let viewModel = SettingsViewModel(settingsDidChange: { savedSettings.append($0) })
@@ -80,6 +85,7 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(savedSettings.last?.selectionAction, .copyOnly)
     }
 
+    /// 改变关闭窗口和 Esc 行为应写入设置。
     func testChangingCloseAndEscapeSettingsPersistsSettings() {
         var savedSettings: [AppSettings] = []
         let viewModel = SettingsViewModel(settingsDidChange: { savedSettings.append($0) })
@@ -92,6 +98,7 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(savedSettings.last?.escapeClosesWindow, false)
     }
 
+    /// 改变常驻和置顶行为应写入设置。
     func testChangingHistoryWindowBehaviorPersistsSettings() {
         var savedSettings: [AppSettings] = []
         let viewModel = SettingsViewModel(settingsDidChange: { savedSettings.append($0) })
@@ -105,6 +112,7 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(savedSettings.last?.historyWindowAlwaysOnTop, true)
     }
 
+    /// 保留策略支持永久保留和自定义天数，并触发清理回调。
     func testRetentionPolicySupportsForeverAndCustomDays() {
         var cleanupCalls = 0
         let viewModel = SettingsViewModel(retentionDaysDidChange: { _ in cleanupCalls += 1 })
@@ -120,6 +128,7 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.lastErrorMessage)
     }
 
+    /// 非法自定义保留天数不应覆盖原设置。
     func testInvalidCustomRetentionDaysDoesNotOverwriteSetting() {
         let viewModel = SettingsViewModel()
         viewModel.customRetentionDaysText = "0"
@@ -131,9 +140,11 @@ final class SettingsViewModelTests: XCTestCase {
     }
 }
 
+/// 验证 AppEnvironment 对窗口、设置、复制粘贴、删除和清理动作的编排。
 final class AppEnvironmentTests: XCTestCase {
     private var temporaryDirectory: URL!
 
+    /// 每个测试准备独立临时目录，供图片文件测试使用。
     override func setUpWithError() throws {
         try super.setUpWithError()
         temporaryDirectory = FileManager.default.temporaryDirectory
@@ -141,6 +152,7 @@ final class AppEnvironmentTests: XCTestCase {
         try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
     }
 
+    /// 测试结束后清理临时目录。
     override func tearDownWithError() throws {
         if let temporaryDirectory {
             try? FileManager.default.removeItem(at: temporaryDirectory)
@@ -149,6 +161,7 @@ final class AppEnvironmentTests: XCTestCase {
         try super.tearDownWithError()
     }
 
+    /// 删除图片历史时应同时删除对应的原图和缩略图文件。
     @MainActor
     func testDeleteRemovesAssociatedImageFiles() throws {
         let imageURL = temporaryDirectory.appendingPathComponent("item.png")
@@ -167,6 +180,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: thumbnailURL.path))
     }
 
+    /// 右键菜单粘贴路径应直接复制并发送粘贴，不依赖历史窗口 presenter。
     @MainActor
     func testMenuPasteCopiesAndSendsWithoutUsingSearchPresenter() async throws {
         let pasteSent = expectation(description: "paste command sent")
@@ -202,6 +216,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
     }
 
+    /// 历史窗口粘贴路径应复制、标记使用、关闭窗口、消费粘贴目标并发送粘贴。
     @MainActor
     func testPopupPasteCopiesMarksUsedClosesConsumesTargetThenSendsPaste() async throws {
         let pasteSent = expectation(description: "paste command sent")
@@ -241,6 +256,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
     }
 
+    /// 图片记录从历史窗口粘贴时应写入图片归档并发送粘贴。
     @MainActor
     func testPopupPasteImageCopiesImageMarksUsedAndSendsPaste() async throws {
         let pasteSent = expectation(description: "paste command sent")
@@ -282,6 +298,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
     }
 
+    /// 选择“只复制到剪贴板”时不发送自动粘贴快捷键。
     @MainActor
     func testPopupSelectionCopyOnlyDoesNotSendPasteCommand() throws {
         let recorder = AppEnvironmentCallRecorder()
@@ -310,6 +327,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
     }
 
+    /// 关闭“选择后关闭窗口”时，只复制模式不应关闭历史窗口。
     @MainActor
     func testPopupSelectionCanKeepWindowOpenAfterCopyOnly() throws {
         let recorder = AppEnvironmentCallRecorder()
@@ -339,6 +357,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
     }
 
+    /// 打开历史窗口时应把外部传入的前台应用交给 presenter。
     @MainActor
     func testOpenSearchPassesProvidedPreviousApplicationToPresenter() {
         let recorder = AppEnvironmentCallRecorder()
@@ -350,6 +369,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertEqual(recorder.calls, ["showWithPreviousApplication"])
     }
 
+    /// 历史窗口工具栏按钮应连接到设置、清理非收藏和清理全部动作。
     @MainActor
     func testOpenSearchPassesToolbarActionsToPresenter() throws {
         let recorder = AppEnvironmentCallRecorder()
@@ -390,6 +410,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertTrue(try store.fetchAll().isEmpty)
     }
 
+    /// 历史窗口中的自动记录开关应绑定到 AppEnvironment。
     @MainActor
     func testOpenSearchPassesRecordingPauseBindingToPresenter() throws {
         let recorder = AppEnvironmentCallRecorder()
@@ -407,6 +428,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertTrue(environment.isRecordingPaused)
     }
 
+    /// 自动记录开关的共享状态应在环境和窗口之间双向同步。
     @MainActor
     func testOpenSearchPassesLiveRecordingPauseStateToPresenter() throws {
         let recorder = AppEnvironmentCallRecorder()
@@ -428,6 +450,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertFalse(environment.isRecordingPaused)
     }
 
+    /// 改变暂停记录状态时应同步持久化到设置。
     @MainActor
     func testChangingRecordingPausePersistsToSettings() {
         var savedSettings: [AppSettings] = []
@@ -442,6 +465,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertTrue(environment.settingsViewModel.settings.isRecordingPaused)
     }
 
+    /// 历史窗口常驻和置顶绑定应透传到 presenter。
     @MainActor
     func testOpenSearchPassesHistoryWindowBehaviorBindingsToPresenter() throws {
         let recorder = AppEnvironmentCallRecorder()
@@ -459,6 +483,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertTrue(environment.settingsViewModel.settings.historyWindowAlwaysOnTop)
     }
 
+    /// 打开设置前应刷新存储占用。
     @MainActor
     func testOpenSettingsRefreshesStorageUsageAndShowsSettingsPresenter() {
         let recorder = AppEnvironmentCallRecorder()
@@ -478,6 +503,7 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertEqual(recorder.calls, ["storageUsage", "showSettings"])
     }
 
+    /// 自动粘贴失败时，记录仍应已复制并标记使用，同时向用户展示错误。
     @MainActor
     func testPasteSenderFailureLeavesItemCopiedAndSurfacesError() async throws {
         let pasteSent = expectation(description: "paste command attempted")
@@ -508,22 +534,26 @@ final class AppEnvironmentTests: XCTestCase {
     }
 }
 
+/// 验证历史窗口 presenter 的 AppKit 窗口行为。
 @MainActor
 final class SearchWindowPresenterTests: XCTestCase {
     private let autosaveDefaultsKey = "NSWindow Frame ClipboardHistorySearchWindow"
 
+    /// 测试前关闭遗留窗口并清空 frame autosave。
     override func setUp() {
         super.setUp()
         closeSearchWindows()
         UserDefaults.standard.removeObject(forKey: autosaveDefaultsKey)
     }
 
+    /// 测试后清理窗口和保存的 frame，避免影响其他用例。
     override func tearDown() {
         closeSearchWindows()
         UserDefaults.standard.removeObject(forKey: autosaveDefaultsKey)
         super.tearDown()
     }
 
+    /// 关闭标题为“剪贴板历史”的测试窗口。
     private func closeSearchWindows() {
         NSApp.windows
             .compactMap { $0 as? NSPanel }
@@ -531,6 +561,7 @@ final class SearchWindowPresenterTests: XCTestCase {
             .forEach { $0.close() }
     }
 
+    /// 历史窗口应保持可见控制、最小尺寸和 frame 自动保存行为。
     func testSearchWindowHidesWhenInactiveAndAutosavesFrame() {
         let presenter = SearchWindowPresenter()
         let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
@@ -564,6 +595,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(panel?.minSize.height ?? 0, 360)
     }
 
+    /// 历史窗口应禁用最大化和全屏相关行为。
     func testSearchWindowDisablesZoomAndFullscreen() throws {
         let presenter = SearchWindowPresenter()
         let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
@@ -598,6 +630,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         XCTAssertFalse(panel.collectionBehavior.contains(.fullScreenPrimary))
     }
 
+    /// 标题栏三个模式按钮应更新绑定、窗口层级和选中状态。
     func testWindowModeTitlebarIconButtonsSetBindingsAndPanelLevel() throws {
         let presenter = SearchWindowPresenter()
         let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
@@ -709,6 +742,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         XCTAssertEqual(alwaysOnTopButton.state, .off)
     }
 
+    /// 置顶绑定应控制 NSPanel 的 level。
     func testAlwaysOnTopControlsPanelLevel() throws {
         let presenter = SearchWindowPresenter()
         let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
@@ -743,6 +777,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         XCTAssertEqual(panel.level, .normal)
     }
 
+    /// 隐藏窗口时应保存当前 frame。
     func testOrderOutSavesCurrentWindowFrame() throws {
         let presenter = SearchWindowPresenter()
         let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
@@ -777,6 +812,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         XCTAssertNotNil(UserDefaults.standard.string(forKey: autosaveDefaultsKey))
     }
 
+    /// 新建 presenter 时应恢复上一次保存的窗口尺寸。
     func testNewSearchWindowRestoresSavedSize() throws {
         let firstPresenter = SearchWindowPresenter()
         let firstViewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
@@ -839,8 +875,10 @@ final class SearchWindowPresenterTests: XCTestCase {
     }
 }
 
+/// 验证设置窗口 presenter 的尺寸配置。
 @MainActor
 final class SettingsWindowPresenterTests: XCTestCase {
+    /// 设置窗口应保持比历史窗口更窄的紧凑宽度。
     func testSettingsWindowUsesCompactWidth() throws {
         let presenter = SettingsWindowPresenter()
         let environment = AppEnvironment()
@@ -861,6 +899,7 @@ final class SettingsWindowPresenterTests: XCTestCase {
     }
 }
 
+/// AppEnvironment 测试用存储，记录关键调用顺序并模拟内存数据变化。
 private final class AppEnvironmentFakeStore: ClipboardStore {
     private var items: [ClipboardItem]
     private let recorder: AppEnvironmentCallRecorder?
@@ -899,6 +938,7 @@ private final class AppEnvironmentFakeStore: ClipboardStore {
     }
 }
 
+/// AppEnvironment 测试用历史窗口 presenter，捕获传入绑定和回调。
 @MainActor
 private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresenting {
     private let recorder: AppEnvironmentCallRecorder
@@ -957,6 +997,7 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
     }
 }
 
+/// AppEnvironment 测试用设置窗口 presenter。
 @MainActor
 private final class AppEnvironmentFakeSettingsWindowPresenter: SettingsWindowPresenting {
     private let recorder: AppEnvironmentCallRecorder
@@ -970,6 +1011,7 @@ private final class AppEnvironmentFakeSettingsWindowPresenter: SettingsWindowPre
     }
 }
 
+/// AppEnvironment 测试用剪贴板写入器。
 private final class AppEnvironmentFakePasteboardWriter: PasteboardWriting {
     private let recorder: AppEnvironmentCallRecorder
     private(set) var writtenText: String?
@@ -990,6 +1032,7 @@ private final class AppEnvironmentFakePasteboardWriter: PasteboardWriting {
     }
 }
 
+/// AppEnvironment 测试用粘贴事件发送器。
 private final class AppEnvironmentFakePasteEventSender: PasteEventSending {
     private let recorder: AppEnvironmentCallRecorder
     private let error: Error?
@@ -1014,6 +1057,7 @@ private final class AppEnvironmentFakePasteEventSender: PasteEventSending {
     }
 }
 
+/// 记录测试中的调用顺序。
 private final class AppEnvironmentCallRecorder {
     var calls: [String] = []
 
@@ -1022,6 +1066,7 @@ private final class AppEnvironmentCallRecorder {
     }
 }
 
+/// 创建测试用图片。
 private func makeTestImage() -> NSImage {
     let image = NSImage(size: NSSize(width: 4, height: 4))
     image.lockFocus()
@@ -1031,6 +1076,7 @@ private func makeTestImage() -> NSImage {
     return image
 }
 
+/// 为测试图片生成 PNG 数据。
 private extension NSImage {
     var pngData: Data? {
         guard
@@ -1043,6 +1089,7 @@ private extension NSImage {
     }
 }
 
+/// AppEnvironment 测试中使用的模拟错误。
 private enum AppEnvironmentTestError: Error {
     case pasteFailed
 }

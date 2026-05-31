@@ -1,10 +1,15 @@
 import Foundation
 
+/// 设置页的状态和业务操作，负责把 UI 修改同步到 AppSettings。
 @MainActor
 final class SettingsViewModel: ObservableObject {
+    /// 当前完整设置。
     @Published var settings: AppSettings
+    /// 图片历史文件占用空间。
     @Published var storageUsageBytes: Int64
+    /// 自定义保留天数输入框文本。
     @Published var customRetentionDaysText: String
+    /// 设置操作失败时展示的错误。
     @Published private(set) var lastErrorMessage: String?
 
     private let clearNonFavoritesAction: () throws -> Void
@@ -38,6 +43,7 @@ final class SettingsViewModel: ObservableObject {
         clearAllAction = clearAll
     }
 
+    /// 直接设置保留天数，并触发过期清理。
     var retentionDays: Int {
         get { settings.retentionDays }
         set {
@@ -53,6 +59,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 选择记录后的动作。
     var selectionAction: ClipboardSelectionAction {
         get { settings.selectionAction }
         set {
@@ -62,6 +69,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 选中记录后是否关闭历史窗口。
     var closeWindowAfterSelection: Bool {
         get { settings.closeWindowAfterSelection }
         set {
@@ -71,6 +79,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 是否允许 Esc 关闭历史窗口。
     var escapeClosesWindow: Bool {
         get { settings.escapeClosesWindow }
         set {
@@ -80,6 +89,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 历史窗口是否常驻不因外部点击关闭。
     var historyWindowStaysOpen: Bool {
         get { settings.historyWindowStaysOpen }
         set {
@@ -89,6 +99,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 历史窗口是否总在最前。
     var historyWindowAlwaysOnTop: Bool {
         get { settings.historyWindowAlwaysOnTop }
         set {
@@ -98,6 +109,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 是否暂停自动记录剪贴板。
     var isRecordingPaused: Bool {
         get { settings.isRecordingPaused }
         set {
@@ -107,6 +119,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 面向设置页 picker 的保留策略。
     var retentionPolicy: RetentionPolicy {
         get { settings.retentionPolicy }
         set {
@@ -123,6 +136,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 开机自启动状态，写入时调用系统登录项服务。
     var launchAtLogin: Bool {
         get { settings.launchAtLogin }
         set {
@@ -137,14 +151,17 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 当前快捷键展示名。
     var shortcutDisplayName: String {
         settings.shortcutDisplayName
     }
 
+    /// 设置页可选的预设快捷键。
     var availableShortcuts: [ShortcutDefinition] {
         ShortcutDefinition.available
     }
 
+    /// 快捷键 picker 的选中 id，写入时同步通知 ShortcutService。
     var selectedShortcutID: String {
         get { settings.shortcutID }
         set {
@@ -164,14 +181,17 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 用户已经录制过的自定义快捷键。
     var recordedShortcut: ShortcutDefinition? {
         settings.customShortcut
     }
 
+    /// 图片历史占用空间的本地化展示文本。
     var storageUsageDescription: String {
         ByteCountFormatter.string(fromByteCount: storageUsageBytes, countStyle: .file)
     }
 
+    /// 应用自定义保留天数输入。
     func applyCustomRetentionDays() {
         guard
             let days = Int(customRetentionDaysText.trimmingCharacters(in: .whitespacesAndNewlines)),
@@ -184,6 +204,7 @@ final class SettingsViewModel: ObservableObject {
         retentionPolicy = .days(days)
     }
 
+    /// 保存用户录制的自定义快捷键。
     func applyCustomShortcut(_ shortcut: ShortcutDefinition) {
         settings.customShortcut = shortcut
         settings.shortcutID = shortcut.id
@@ -192,6 +213,7 @@ final class SettingsViewModel: ObservableObject {
         lastErrorMessage = nil
     }
 
+    /// 清空非收藏记录，并刷新存储占用。
     func clearNonFavorites() {
         do {
             try clearNonFavoritesAction()
@@ -202,6 +224,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 清空全部历史记录，并刷新存储占用。
     func clearAll() {
         do {
             try clearAllAction()
@@ -212,10 +235,12 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// 重新读取图片存储占用。
     func refreshStorageUsage() {
         storageUsageBytes = storageUsageProvider()
     }
 
+    /// AppEnvironment 在 ShortcutService 创建后注入更新回调。
     func setShortcutDidChange(_ handler: @escaping (ShortcutDefinition) -> Void) {
         shortcutDidChange = handler
     }

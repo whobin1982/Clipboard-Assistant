@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// SwiftUI 设置页入口，从环境对象中取出 SettingsViewModel。
 struct SettingsView: View {
     @EnvironmentObject private var environment: AppEnvironment
 
@@ -8,10 +9,12 @@ struct SettingsView: View {
     }
 }
 
+/// 设置表单主体，按功能分为粘贴行为、快捷键、启动与历史、清理四块。
 private struct SettingsFormView: View {
     @ObservedObject var viewModel: SettingsViewModel
     @State private var clearConfirmation: ClearConfirmation?
 
+    /// 设置页整体滚动布局。
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -133,6 +136,7 @@ private struct SettingsFormView: View {
         .frame(minWidth: 480, minHeight: 520)
     }
 
+    /// 开机启动开关绑定。
     private var launchAtLogin: Binding<Bool> {
         Binding(
             get: { viewModel.launchAtLogin },
@@ -140,6 +144,7 @@ private struct SettingsFormView: View {
         )
     }
 
+    /// 选中历史后的动作绑定。
     private var selectionAction: Binding<ClipboardSelectionAction> {
         Binding(
             get: { viewModel.selectionAction },
@@ -147,6 +152,7 @@ private struct SettingsFormView: View {
         )
     }
 
+    /// 选择记录后是否关闭窗口的绑定。
     private var closeWindowAfterSelection: Binding<Bool> {
         Binding(
             get: { viewModel.closeWindowAfterSelection },
@@ -154,6 +160,7 @@ private struct SettingsFormView: View {
         )
     }
 
+    /// Esc 关闭窗口的设置绑定。
     private var escapeClosesWindow: Binding<Bool> {
         Binding(
             get: { viewModel.escapeClosesWindow },
@@ -161,6 +168,7 @@ private struct SettingsFormView: View {
         )
     }
 
+    /// 保留策略 picker 绑定。
     private var retentionPolicy: Binding<RetentionPolicy> {
         Binding(
             get: { viewModel.retentionPolicy },
@@ -168,6 +176,7 @@ private struct SettingsFormView: View {
         )
     }
 
+    /// 快捷键 picker 绑定。
     private var shortcutID: Binding<String> {
         Binding(
             get: { viewModel.selectedShortcutID },
@@ -175,6 +184,7 @@ private struct SettingsFormView: View {
         )
     }
 
+    /// 当前保留天数不是预设值时，在菜单里临时显示自定义选项。
     private var shouldShowCustomRetentionOption: Bool {
         guard case .days(let days) = viewModel.retentionPolicy else {
             return false
@@ -183,6 +193,7 @@ private struct SettingsFormView: View {
     }
 }
 
+/// 设置页分区组件。
 private struct SettingsSection<Content: View>: View {
     private let title: String
     @ViewBuilder private let content: Content
@@ -192,6 +203,7 @@ private struct SettingsSection<Content: View>: View {
         self.content = content()
     }
 
+    /// 分区标题和内容纵向排列。
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
@@ -204,6 +216,7 @@ private struct SettingsSection<Content: View>: View {
     }
 }
 
+/// 设置页一行“标题 + 控件”的布局组件。
 private struct SettingsRow<Content: View>: View {
     private let title: String
     @ViewBuilder private let content: Content
@@ -213,6 +226,7 @@ private struct SettingsRow<Content: View>: View {
         self.content = content()
     }
 
+    /// 左侧固定宽度标签，右侧放具体控件。
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
             Text(title)
@@ -226,12 +240,14 @@ private struct SettingsRow<Content: View>: View {
     }
 }
 
+/// 清空历史操作的确认类型。
 private enum ClearConfirmation: Hashable, Identifiable {
     case nonFavorites
     case all
 
     var id: Self { self }
 
+    /// 确认弹窗标题。
     var title: String {
         switch self {
         case .nonFavorites:
@@ -241,6 +257,7 @@ private enum ClearConfirmation: Hashable, Identifiable {
         }
     }
 
+    /// 确认弹窗说明。
     var message: String {
         switch self {
         case .nonFavorites:
@@ -250,6 +267,7 @@ private enum ClearConfirmation: Hashable, Identifiable {
         }
     }
 
+    /// 危险按钮文案。
     var confirmTitle: String {
         switch self {
         case .nonFavorites:

@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+/// 剪贴板历史弹窗主视图，包含工具栏、搜索框、记录列表和键盘选择逻辑。
 struct ClipboardPopupView: View {
     @ObservedObject var viewModel: ClipboardHistoryViewModel
     @ObservedObject var recordingPauseState: RecordingPauseState
@@ -17,6 +18,7 @@ struct ClipboardPopupView: View {
     var onCopy: (ClipboardItem) -> Void
     var onDelete: (ClipboardItem) -> Void
 
+    /// 弹窗内容布局：顶部操作栏，中间错误或空状态，底部历史列表。
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             KeyEventHandlingView(
@@ -128,6 +130,7 @@ struct ClipboardPopupView: View {
         }
     }
 
+    /// 界面显示“自动记录”，底层存储的是“是否暂停”，因此这里反向绑定。
     private var isRecordingEnabled: Binding<Bool> {
         Binding(
             get: { !recordingPauseState.isPaused },
@@ -136,12 +139,14 @@ struct ClipboardPopupView: View {
     }
 }
 
+/// 清空历史前的二次确认类型。
 private enum ClipboardClearConfirmation: Hashable, Identifiable {
     case nonFavorites
     case all
 
     var id: Self { self }
 
+    /// 确认弹窗标题。
     var title: String {
         switch self {
         case .nonFavorites:
@@ -151,6 +156,7 @@ private enum ClipboardClearConfirmation: Hashable, Identifiable {
         }
     }
 
+    /// 确认弹窗说明。
     var message: String {
         switch self {
         case .nonFavorites:
@@ -160,6 +166,7 @@ private enum ClipboardClearConfirmation: Hashable, Identifiable {
         }
     }
 
+    /// 危险操作按钮文案。
     var confirmTitle: String {
         switch self {
         case .nonFavorites:
@@ -170,12 +177,14 @@ private enum ClipboardClearConfirmation: Hashable, Identifiable {
     }
 }
 
+/// SwiftUI 包装的 AppKit 键盘监听视图，用来捕获上下键、回车和 Esc。
 private struct KeyEventHandlingView: NSViewRepresentable {
     let onDownArrow: () -> Void
     let onUpArrow: () -> Void
     let onReturn: () -> Void
     let onEscape: () -> Void
 
+    /// 创建原生 NSView 并安装本地键盘事件监听。
     func makeNSView(context: Context) -> KeyEventMonitorView {
         let view = KeyEventMonitorView()
         updateNSView(view, context: context)
@@ -183,6 +192,7 @@ private struct KeyEventHandlingView: NSViewRepresentable {
         return view
     }
 
+    /// SwiftUI 状态更新时同步最新回调，避免闭包捕获旧状态。
     func updateNSView(_ nsView: KeyEventMonitorView, context: Context) {
         nsView.onDownArrow = onDownArrow
         nsView.onUpArrow = onUpArrow
@@ -190,11 +200,13 @@ private struct KeyEventHandlingView: NSViewRepresentable {
         nsView.onEscape = onEscape
     }
 
+    /// 视图销毁时移除监听。
     static func dismantleNSView(_ nsView: KeyEventMonitorView, coordinator: ()) {
         nsView.removeMonitor()
     }
 }
 
+/// 实际接收键盘事件的 NSView。
 private final class KeyEventMonitorView: NSView {
     var onDownArrow: () -> Void = {}
     var onUpArrow: () -> Void = {}
@@ -203,6 +215,7 @@ private final class KeyEventMonitorView: NSView {
 
     private var monitor: Any?
 
+    /// 安装窗口内 keyDown 监听；返回 nil 表示按键已被处理，不再传给其他控件。
     func installMonitor() {
         removeMonitor()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -233,6 +246,7 @@ private final class KeyEventMonitorView: NSView {
         }
     }
 
+    /// 移除键盘监听。
     func removeMonitor() {
         if let monitor {
             NSEvent.removeMonitor(monitor)

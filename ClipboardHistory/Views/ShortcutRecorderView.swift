@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+/// 设置页中的快捷键录制控件。
 struct ShortcutRecorderView: View {
     let shortcut: ShortcutDefinition
     let onRecord: (ShortcutDefinition) -> Void
@@ -8,6 +9,7 @@ struct ShortcutRecorderView: View {
     @State private var isRecording = false
     @State private var message: String?
 
+    /// 显示当前快捷键，点击后进入录制状态。
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
@@ -56,12 +58,14 @@ struct ShortcutRecorderView: View {
     }
 }
 
+/// SwiftUI 对原生快捷键捕获视图的包装。
 private struct ShortcutCaptureView: NSViewRepresentable {
     @Binding var isRecording: Bool
     let onRecord: (ShortcutDefinition) -> Void
     let onCancel: () -> Void
     let onReject: () -> Void
 
+    /// 创建原生视图并注入回调。
     func makeNSView(context: Context) -> ShortcutCaptureNSView {
         let view = ShortcutCaptureNSView()
         view.onRecord = { shortcut in
@@ -73,6 +77,7 @@ private struct ShortcutCaptureView: NSViewRepresentable {
         return view
     }
 
+    /// 同步录制状态；录制时主动成为第一响应者以接收键盘事件。
     func updateNSView(_ nsView: ShortcutCaptureNSView, context: Context) {
         nsView.isRecording = isRecording
         nsView.onRecord = { shortcut in
@@ -90,6 +95,7 @@ private struct ShortcutCaptureView: NSViewRepresentable {
     }
 }
 
+/// 原生 NSView，负责接收 keyDown 并转换成 ShortcutDefinition。
 private final class ShortcutCaptureNSView: NSView {
     var isRecording = false
     var onRecord: ((ShortcutDefinition) -> Void)?
@@ -98,10 +104,12 @@ private final class ShortcutCaptureNSView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// 点击控件时获取键盘焦点。
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
     }
 
+    /// 录制状态下处理按键；Esc 取消，合法组合则生成快捷键。
     override func keyDown(with event: NSEvent) {
         guard isRecording else {
             super.keyDown(with: event)
@@ -122,7 +130,9 @@ private final class ShortcutCaptureNSView: NSView {
     }
 }
 
+/// 从 NSEvent 生成 ShortcutDefinition 的辅助逻辑。
 private extension ShortcutDefinition {
+    /// 只接受至少一个修饰键 + 一个字母或数字键的组合。
     init?(event: NSEvent) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let requiresCommand = flags.contains(.command)
@@ -159,6 +169,7 @@ private extension ShortcutDefinition {
         )
     }
 
+    /// 将修饰键和主键拼成用户可读的显示名。
     static func displayName(
         keyName: String,
         requiresCommand: Bool,

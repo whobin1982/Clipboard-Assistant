@@ -3,7 +3,9 @@ import Foundation
 import XCTest
 @testable import ClipboardHistory
 
+/// 验证复制、图片归档恢复、系统剪贴板读写和自动粘贴事件发送。
 final class PasteServiceTests: XCTestCase {
+    /// 文本记录应写入文本剪贴板，不应写入图片归档。
     func testCopyTextWritesTextToPasteboard() throws {
         let pasteboard = FakePasteboardWriter()
         let service = PasteService(pasteboard: pasteboard, pasteEventSender: FakePasteEventSender())
@@ -14,6 +16,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNil(pasteboard.writtenImageArchive)
     }
 
+    /// 写入文本时应带上内部 marker，避免监听器重复记录。
     func testSystemPasteboardWriterMarksTextAsClipboardHistoryCopy() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let writer = SystemPasteboardWriter(pasteboard: pasteboard)
@@ -27,6 +30,7 @@ final class PasteServiceTests: XCTestCase {
         )
     }
 
+    /// 旧版单图片文件记录应被包装成单 item 图片归档。
     func testCopyImageWritesLegacyImageFileAsSingleItemArchive() throws {
         let pasteboard = FakePasteboardWriter()
         let service = PasteService(pasteboard: pasteboard, pasteEventSender: FakePasteEventSender())
@@ -47,6 +51,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNil(pasteboard.writtenText)
     }
 
+    /// 新版图片归档应按原 manifest 恢复。
     func testCopyImageRestoresArchiveManifest() throws {
         let pasteboard = FakePasteboardWriter()
         let service = PasteService(pasteboard: pasteboard, pasteEventSender: FakePasteEventSender())
@@ -66,6 +71,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNil(pasteboard.writtenText)
     }
 
+    /// 写入图片时也应带上内部 marker。
     func testSystemPasteboardWriterMarksImageAsClipboardHistoryCopy() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let writer = SystemPasteboardWriter(pasteboard: pasteboard)
@@ -81,6 +87,7 @@ final class PasteServiceTests: XCTestCase {
         )
     }
 
+    /// 写回图片归档时应保留多个 item 和同一 item 的多种图片格式。
     func testSystemPasteboardWriterRestoresArchiveItemsWithAllImageTypes() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let writer = SystemPasteboardWriter(pasteboard: pasteboard)
@@ -111,6 +118,7 @@ final class PasteServiceTests: XCTestCase {
         )
     }
 
+    /// 读取根 pasteboard 上的 PNG 图片数据。
     func testSystemPasteboardReaderReadsPngImageArchive() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let imageData = try XCTUnwrap(makeTestImage().pngData)
@@ -125,6 +133,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertEqual(archive.items[0][0].pasteboardType, .png)
     }
 
+    /// 读取多个 pasteboard item 时应保留图片类型，并忽略非图片类型。
     func testSystemPasteboardReaderPreservesImageItemsAndIgnoresNonImageTypes() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let pngData = try XCTUnwrap(makeTestImage().pngData)
@@ -149,6 +158,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertEqual(archive.items[1], [ClipboardImagePayload(data: jpegData, pasteboardType: jpegType)])
     }
 
+    /// Finder 复制图片文件时应读取文件真实内容。
     func testSystemPasteboardReaderReadsImageFileURLContents() throws {
         let imageURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -165,6 +175,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertEqual(archive.items, [[ClipboardImagePayload(data: imageData, pasteboardType: .png)]])
     }
 
+    /// 文件引用同时带有系统图标时，应读取图片文件内容而不是图标。
     func testSystemPasteboardReaderReadsImageFileURLContentsInsteadOfFileIcon() throws {
         let imageURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -186,6 +197,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertEqual(archive.items, [[ClipboardImagePayload(data: imageData, pasteboardType: .png)]])
     }
 
+    /// 非图片文件即使带有图标图片，也不应被当成图片历史。
     func testSystemPasteboardReaderIgnoresNonImageFileURLEvenWhenItAlsoContainsImageIcon() throws {
         let textURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -205,6 +217,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNil(reader.readImageArchive())
     }
 
+    /// PDF 文件不属于图片复制范围，应被忽略。
     func testSystemPasteboardReaderIgnoresPDFFileURL() throws {
         let pdfURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -219,6 +232,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNil(reader.readImageArchive())
     }
 
+    /// copyAndPaste 应先复制再发送粘贴快捷键。
     func testCopyAndPasteCopiesThenSendsPasteCommand() throws {
         let recorder = CallRecorder()
         let pasteboard = FakePasteboardWriter(recorder: recorder)
@@ -230,6 +244,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertEqual(recorder.calls, ["writeText:Saved text", "sendPasteCommand"])
     }
 
+    /// 自动粘贴失败时，复制动作已经完成，错误继续向上抛出。
     func testCopyAndPasteThrowsWhenPasteSenderFailsAfterCopying() {
         let pasteboard = FakePasteboardWriter()
         let sender = FakePasteEventSender(error: TestError.pasteFailed)
@@ -241,6 +256,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertEqual(pasteboard.writtenText, "Saved text")
     }
 
+    /// 文本记录缺少文本内容时应抛出明确错误。
     func testCopyTextThrowsWhenTextIsMissing() {
         let item = ClipboardItem(
             id: UUID(),
@@ -259,6 +275,7 @@ final class PasteServiceTests: XCTestCase {
         }
     }
 
+    /// 图片记录缺少图片路径时应抛出明确错误。
     func testCopyImageThrowsWhenImagePathIsMissing() {
         let item = ClipboardItem(
             id: UUID(),
@@ -277,6 +294,7 @@ final class PasteServiceTests: XCTestCase {
         }
     }
 
+    /// 图片路径不可读时应抛出带路径的错误。
     func testCopyImageThrowsWhenImagePathIsUnreadable() {
         let service = PasteService(pasteboard: FakePasteboardWriter(), pasteEventSender: FakePasteEventSender())
         let item = ClipboardItem.image(
@@ -290,6 +308,7 @@ final class PasteServiceTests: XCTestCase {
     }
 }
 
+/// 测试用剪贴板写入器，记录文本或图片归档写入结果。
 private final class FakePasteboardWriter: PasteboardWriting {
     private let recorder: CallRecorder?
     private(set) var writtenText: String?
@@ -310,6 +329,7 @@ private final class FakePasteboardWriter: PasteboardWriting {
     }
 }
 
+/// 测试用粘贴事件发送器，可记录调用顺序并模拟失败。
 private final class FakePasteEventSender: PasteEventSending {
     private let recorder: CallRecorder?
     private let error: Error?
@@ -327,6 +347,7 @@ private final class FakePasteEventSender: PasteEventSending {
     }
 }
 
+/// 简单调用记录器，用于验证复制和粘贴事件的先后顺序。
 private final class CallRecorder {
     private(set) var calls: [String] = []
 
@@ -335,14 +356,17 @@ private final class CallRecorder {
     }
 }
 
+/// 粘贴服务测试中的模拟错误。
 private enum TestError: Error, Equatable {
     case pasteFailed
 }
 
+/// 构造 PDF 测试数据时可能出现的错误。
 private enum TestDataError: Error {
     case pdfCreationFailed
 }
 
+/// 创建纯色测试图片。
 private func makeTestImage(size: NSSize = NSSize(width: 2, height: 2)) -> NSImage {
     let image = NSImage(size: size)
     image.lockFocus()
@@ -352,6 +376,7 @@ private func makeTestImage(size: NSSize = NSSize(width: 2, height: 2)) -> NSImag
     return image
 }
 
+/// 创建最小 PDF 数据，用于验证 PDF 文件不会被当成图片记录。
 private func makeTestPDFData() throws -> Data {
     let data = NSMutableData()
     guard let consumer = CGDataConsumer(data: data as CFMutableData) else {
@@ -369,6 +394,7 @@ private func makeTestPDFData() throws -> Data {
     return data as Data
 }
 
+/// 为测试图片生成 PNG/JPEG 数据。
 private extension NSImage {
     var pngData: Data? {
         guard
