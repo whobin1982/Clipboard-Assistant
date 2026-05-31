@@ -296,6 +296,25 @@ final class AppEnvironmentTests: XCTestCase {
     }
 
     @MainActor
+    func testOpenSettingsRefreshesStorageUsageAndShowsSettingsPresenter() {
+        let recorder = AppEnvironmentCallRecorder()
+        let presenter = AppEnvironmentFakeSettingsWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            settingsWindowPresenter: presenter,
+            storageUsageProvider: {
+                recorder.record("storageUsage")
+                return 42
+            }
+        )
+        recorder.calls.removeAll()
+
+        environment.openSettings()
+
+        XCTAssertEqual(environment.settingsViewModel.storageUsageBytes, 42)
+        XCTAssertEqual(recorder.calls, ["storageUsage", "showSettings"])
+    }
+
+    @MainActor
     func testPasteSenderFailureLeavesItemCopiedAndSurfacesError() async throws {
         let pasteSent = expectation(description: "paste command attempted")
         let recorder = AppEnvironmentCallRecorder()
@@ -504,6 +523,19 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
     func consumePreviousApplication() -> NSRunningApplication? {
         recorder.record("consumePreviousApplication")
         return nil
+    }
+}
+
+@MainActor
+private final class AppEnvironmentFakeSettingsWindowPresenter: SettingsWindowPresenting {
+    private let recorder: AppEnvironmentCallRecorder
+
+    init(recorder: AppEnvironmentCallRecorder) {
+        self.recorder = recorder
+    }
+
+    func show(environment: AppEnvironment) {
+        recorder.record("showSettings")
     }
 }
 

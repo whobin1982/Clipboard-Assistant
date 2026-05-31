@@ -11,6 +11,14 @@ struct ClipboardHistoryApp: App {
             SettingsView()
                 .environmentObject(environment)
         }
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("设置...") {
+                    environment.openSettings()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+        }
     }
 }
 

@@ -16,6 +16,7 @@ final class AppEnvironment: ObservableObject {
     private let store: ClipboardStore
     private let pasteService: PasteService
     private let searchWindowPresenter: SearchWindowPresenting
+    private let settingsWindowPresenter: SettingsWindowPresenting
     private let imageStorage: ImageStorage?
     private let recordingState: RecordingState
     private var retentionCleaner: RetentionCleaner?
@@ -28,6 +29,7 @@ final class AppEnvironment: ObservableObject {
         store: ClipboardStore = InMemoryClipboardStore(),
         pasteService: PasteService = PasteService(),
         searchWindowPresenter: SearchWindowPresenting? = nil,
+        settingsWindowPresenter: SettingsWindowPresenting? = nil,
         imageStorage: ImageStorage? = nil,
         settings: AppSettings = .default,
         storageUsageProvider: @escaping () -> Int64 = { 0 },
@@ -39,6 +41,7 @@ final class AppEnvironment: ObservableObject {
         self.store = store
         self.pasteService = pasteService
         self.searchWindowPresenter = searchWindowPresenter ?? SearchWindowPresenter()
+        self.settingsWindowPresenter = settingsWindowPresenter ?? SettingsWindowPresenter()
         self.imageStorage = imageStorage
         recordingState = RecordingState(isPaused: isRecordingPaused)
         lastErrorMessage = startupErrorMessage
@@ -174,8 +177,7 @@ final class AppEnvironment: ObservableObject {
 
     func openSettings() {
         settingsViewModel.refreshStorageUsage()
-        NSApplication.shared.activate(ignoringOtherApps: true)
-        NSApplication.shared.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        settingsWindowPresenter.show(environment: self)
     }
 
     func paste(_ item: ClipboardItem) {
