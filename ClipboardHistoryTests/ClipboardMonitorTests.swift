@@ -140,6 +140,31 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertTrue(store.insertedItems.isEmpty)
     }
 
+    func testFilePasteboardDoesNotInsertTextOrImageAndIsNotRetried() {
+        let pasteboard = FakePasteboard(
+            changeCount: 1,
+            string: "copied-file.png",
+            image: makeImage(),
+            containsFileReference: true
+        )
+        let store = FakeClipboardStore()
+        let imageStorage = FakeImageStorage()
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: imageStorage,
+            isRecordingPaused: { false }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+        pasteboard.containsFileReference = false
+        monitor.pollOnce()
+
+        XCTAssertTrue(imageStorage.savedArchives.isEmpty)
+        XCTAssertTrue(store.insertedItems.isEmpty)
+    }
+
     func testWhitespaceOnlyTextDoesNotInsert() {
         let pasteboard = FakePasteboard(changeCount: 1, string: " \n\t ")
         let store = FakeClipboardStore()
@@ -299,12 +324,14 @@ private final class FakePasteboard: PasteboardReading {
     var string: String?
     var imageArchive: ClipboardImageArchive?
     var isMarkedByClipboardHistory: Bool
+    var containsFileReference: Bool
 
     init(
         changeCount: Int,
         string: String? = nil,
         image: NSImage? = nil,
-        isMarkedByClipboardHistory: Bool = false
+        isMarkedByClipboardHistory: Bool = false,
+        containsFileReference: Bool = false
     ) {
         self.changeCount = changeCount
         self.string = string
@@ -314,6 +341,7 @@ private final class FakePasteboard: PasteboardReading {
             }
         }
         self.isMarkedByClipboardHistory = isMarkedByClipboardHistory
+        self.containsFileReference = containsFileReference
     }
 
     func readString() -> String? {
@@ -322,6 +350,10 @@ private final class FakePasteboard: PasteboardReading {
 
     func readImageArchive() -> ClipboardImageArchive? {
         imageArchive
+    }
+
+    func hasFileReference() -> Bool {
+        containsFileReference
     }
 
     func wasWrittenByClipboardHistory() -> Bool {

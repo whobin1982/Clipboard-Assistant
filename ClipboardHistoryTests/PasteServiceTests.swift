@@ -163,6 +163,25 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNil(reader.readImageArchive())
     }
 
+    func testSystemPasteboardReaderIgnoresFilePasteboardEvenWhenItAlsoContainsImageIcon() throws {
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("png")
+        try XCTUnwrap(makeTestImage().pngData).write(to: imageURL)
+        defer { try? FileManager.default.removeItem(at: imageURL) }
+        let iconData = try XCTUnwrap(makeTestImage(size: NSSize(width: 1024, height: 1024)).tiffRepresentation)
+        let fileItem = NSPasteboardItem()
+        fileItem.setString(imageURL.absoluteString, forType: .fileURL)
+        let iconItem = NSPasteboardItem()
+        iconItem.setData(iconData, forType: .tiff)
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        pasteboard.clearContents()
+        XCTAssertTrue(pasteboard.writeObjects([fileItem, iconItem]))
+        let reader = SystemPasteboardReader(pasteboard: pasteboard)
+
+        XCTAssertNil(reader.readImageArchive())
+    }
+
     func testCopyAndPasteCopiesThenSendsPasteCommand() throws {
         let recorder = CallRecorder()
         let pasteboard = FakePasteboardWriter(recorder: recorder)
@@ -283,11 +302,11 @@ private enum TestError: Error, Equatable {
     case pasteFailed
 }
 
-private func makeTestImage() -> NSImage {
-    let image = NSImage(size: NSSize(width: 2, height: 2))
+private func makeTestImage(size: NSSize = NSSize(width: 2, height: 2)) -> NSImage {
+    let image = NSImage(size: size)
     image.lockFocus()
     NSColor.systemBlue.setFill()
-    NSRect(x: 0, y: 0, width: 2, height: 2).fill()
+    NSRect(origin: .zero, size: size).fill()
     image.unlockFocus()
     return image
 }

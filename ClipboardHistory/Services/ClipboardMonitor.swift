@@ -5,6 +5,7 @@ protocol PasteboardReading {
     var changeCount: Int { get }
     func readString() -> String?
     func readImageArchive() -> ClipboardImageArchive?
+    func hasFileReference() -> Bool
     func wasWrittenByClipboardHistory() -> Bool
 }
 
@@ -139,6 +140,13 @@ final class SystemPasteboardReader: PasteboardReading {
         NSPasteboard.PasteboardType("com.compuserve.gif")
     ]
     private static let directImageTypeSet = Set(directImageTypes)
+    private static let knownFileReferenceTypes: Set<NSPasteboard.PasteboardType> = [
+        .fileURL,
+        .fileContents,
+        NSPasteboard.PasteboardType("NSFilenamesPboardType"),
+        NSPasteboard.PasteboardType("com.apple.pasteboard.promised-file-url"),
+        NSPasteboard.PasteboardType("com.apple.pasteboard.promised-file-content-type")
+    ]
 
     private let pasteboard: NSPasteboard
 
@@ -155,6 +163,10 @@ final class SystemPasteboardReader: PasteboardReading {
     }
 
     func readImageArchive() -> ClipboardImageArchive? {
+        guard !hasFileReference() else {
+            return nil
+        }
+
         let imageItems = pasteboard.pasteboardItems?.compactMap { item -> [ClipboardImagePayload]? in
             let payloads = item.types.compactMap { type -> ClipboardImagePayload? in
                 guard
@@ -176,8 +188,25 @@ final class SystemPasteboardReader: PasteboardReading {
         return readSingleImagePayload().map(ClipboardImageArchive.single)
     }
 
+    func hasFileReference() -> Bool {
+        pasteboard.pasteboardItems?.contains { item in
+            item.types.contains(where: Self.isFileReferenceType)
+        } ?? false
+    }
+
     func wasWrittenByClipboardHistory() -> Bool {
         pasteboard.string(forType: ClipboardPasteboardMarker.type) == ClipboardPasteboardMarker.value
+    }
+
+    private static func isFileReferenceType(_ type: NSPasteboard.PasteboardType) -> Bool {
+        if knownFileReferenceTypes.contains(type) {
+            return true
+        }
+
+        let rawValue = type.rawValue.lowercased()
+        return rawValue == "nsfilenamespboardtype"
+            || rawValue.contains("file-url")
+            || rawValue.contains("promised-file")
     }
 
     private func readSingleImagePayload() -> ClipboardImagePayload? {
@@ -246,6 +275,11 @@ final class ClipboardMonitor {
         guard currentChangeCount != lastProcessedChangeCount else { return }
 
         if pasteboard.wasWrittenByClipboardHistory() {
+            markChangeHandled(currentChangeCount)
+            return
+        }
+
+        if pasteboard.hasFileReference() {
             markChangeHandled(currentChangeCount)
             return
         }
