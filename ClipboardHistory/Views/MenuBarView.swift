@@ -43,6 +43,14 @@ struct MenuBarView: View {
             environment.openSettings()
         }
 
+        Button("帮助") {
+            HelpWindowPresenter.shared.show()
+        }
+
+        Button("关于剪贴板助手") {
+            AboutPanelPresenter.show()
+        }
+
         Divider()
 
         Button("退出") {

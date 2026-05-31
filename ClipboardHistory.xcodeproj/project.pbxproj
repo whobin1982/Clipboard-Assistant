@@ -12,6 +12,9 @@
 		5B22A4472DB4412BB1A60101 /* ClipboardSelectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B22A4472DB4412BB1A60100 /* ClipboardSelectionController.swift */; };
 		5B22A4472DB4412BB1A60103 /* ClipboardSelectionControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B22A4472DB4412BB1A60102 /* ClipboardSelectionControllerTests.swift */; };
 		5B22A4472DB4412BB1A60105 /* SettingsWindowPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B22A4472DB4412BB1A60104 /* SettingsWindowPresenter.swift */; };
+		A13000000000000000000001 /* HelpWindowPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13000000000000000000004 /* HelpWindowPresenter.swift */; };
+		A13000000000000000000002 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = A13000000000000000000005 /* AppIcon.icns */; };
+		A13000000000000000000003 /* HelpREADME.md in Resources */ = {isa = PBXBuildFile; fileRef = A13000000000000000000006 /* HelpREADME.md */; };
 		6E4C1A0F2B3D4E5F60718291 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4C1A0F2B3D4E5F60718292 /* ClipboardMonitor.swift */; };
 		6E4C1A0F2B3D4E5F60718294 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */; };
 		6A4A1E7D7F834F3D907A1F22 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47BD1C4373414A48A4071CB7 /* AppSettings.swift */; };
@@ -62,6 +65,9 @@
 		5B22A4472DB4412BB1A60100 /* ClipboardSelectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSelectionController.swift; sourceTree = "<group>"; };
 		5B22A4472DB4412BB1A60102 /* ClipboardSelectionControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSelectionControllerTests.swift; sourceTree = "<group>"; };
 		5B22A4472DB4412BB1A60104 /* SettingsWindowPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowPresenter.swift; sourceTree = "<group>"; };
+		A13000000000000000000004 /* HelpWindowPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpWindowPresenter.swift; sourceTree = "<group>"; };
+		A13000000000000000000005 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
+		A13000000000000000000006 /* HelpREADME.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = HelpREADME.md; sourceTree = "<group>"; };
 		6E4C1A0F2B3D4E5F60718292 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
 		727B8E81225C4F5A9FBB3700 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
@@ -101,6 +107,7 @@
 				AA238A47415DF1ECBA0A8C23 /* App */,
 				C3576F982E6745D388780F2F /* Models */,
 				B47A2C9E0F18464CB0A3D105 /* Persistence */,
+				A13000000000000000000007 /* Resources */,
 				D41A7B7C55964FE8849F3A04 /* Services */,
 				79F0B401D0A747D9B0D08A08 /* ViewModels */,
 				7EA9ED289286CE10FB4465F2 /* Views */,
@@ -143,6 +150,7 @@
 			children = (
 				DF6487DEAC15726584A5AD54 /* AppEnvironment.swift */,
 				53AF7D8DA531E0C01DEEDF37 /* ClipboardHistoryApp.swift */,
+				A13000000000000000000004 /* HelpWindowPresenter.swift */,
 				8BB0EA48158B4A8B9B2D63FF /* SearchWindowPresenter.swift */,
 				5B22A4472DB4412BB1A60104 /* SettingsWindowPresenter.swift */,
 			);
@@ -166,6 +174,15 @@
 				B47A2C9E0F18464CB0A3D103 /* SQLiteClipboardStore.swift */,
 			);
 			path = Persistence;
+			sourceTree = "<group>";
+		};
+		A13000000000000000000007 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A13000000000000000000005 /* AppIcon.icns */,
+				A13000000000000000000006 /* HelpREADME.md */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		D41A7B7C55964FE8849F3A04 /* Services */ = {
@@ -235,6 +252,7 @@
 			buildConfigurationList = FF54D814B1669207EC95381A /* Build configuration list for PBXNativeTarget "ClipboardHistory" */;
 			buildPhases = (
 				C9B45C77B027A619E70BCA92 /* Sources */,
+				A13000000000000000000008 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -278,6 +296,18 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		A13000000000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A13000000000000000000002 /* AppIcon.icns in Resources */,
+				A13000000000000000000003 /* HelpREADME.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		39C3B148549DE9062F0ED7EC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -308,6 +338,7 @@
 				B47A2C9E0F18464CB0A3D106 /* ClipboardStore.swift in Sources */,
 				B47A2C9E0F18464CB0A3D107 /* DatabaseMigrator.swift in Sources */,
 				B47A2C9E0F18464CB0A3D108 /* SQLiteClipboardStore.swift in Sources */,
+				A13000000000000000000001 /* HelpWindowPresenter.swift in Sources */,
 				6E4C1A0F2B3D4E5F60718291 /* ClipboardMonitor.swift in Sources */,
 				D41A7B7C55964FE8849F3A01 /* ImageStorage.swift in Sources */,
 				7F91D6A3C4B5482B9A102345 /* LoginItemService.swift in Sources */,
@@ -401,7 +432,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = ClipboardHistory/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (c) 2026 胡斌";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -439,7 +470,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = ClipboardHistory/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (c) 2026 胡斌";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

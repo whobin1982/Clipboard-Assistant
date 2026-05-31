@@ -12,11 +12,23 @@ struct ClipboardHistoryApp: App {
                 .environmentObject(environment)
         }
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("关于剪贴板助手") {
+                    AboutPanelPresenter.show()
+                }
+            }
+
             CommandGroup(replacing: .appSettings) {
                 Button("设置...") {
                     environment.openSettings()
                 }
                 .keyboardShortcut(",", modifiers: .command)
+            }
+
+            CommandGroup(replacing: .help) {
+                Button("剪贴板助手帮助") {
+                    HelpWindowPresenter.shared.show()
+                }
             }
         }
     }
@@ -42,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 private final class StatusItemController: NSObject {
     private let environment: AppEnvironment
     private let statusItem: NSStatusItem
+    private let helpWindowPresenter = HelpWindowPresenter.shared
     private var menuItemsByID: [String: ClipboardItem] = [:]
     private var pendingPreviousApplication: NSRunningApplication?
 
@@ -133,6 +146,8 @@ private final class StatusItemController: NSObject {
 
         menu.addItem(.separator())
         menu.addItem(item("设置", action: #selector(openSettings)))
+        menu.addItem(item("帮助", action: #selector(openHelp)))
+        menu.addItem(item("关于剪贴板助手", action: #selector(showAbout)))
         menu.addItem(.separator())
         menu.addItem(item("退出", action: #selector(quit)))
 
@@ -217,6 +232,14 @@ private final class StatusItemController: NSObject {
 
     @objc private func openSettings() {
         environment.openSettings()
+    }
+
+    @objc private func openHelp() {
+        helpWindowPresenter.show()
+    }
+
+    @objc private func showAbout() {
+        AboutPanelPresenter.show()
     }
 
     @objc private func quit() {
