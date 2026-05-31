@@ -100,8 +100,11 @@ struct ClipboardPopupView: View {
             }
         }
         .padding(12)
-        .frame(minWidth: 520, minHeight: 320)
+        .frame(minWidth: 520, minHeight: 328)
         .onAppear {
+            viewModel.reload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .clipboardHistoryDidChange)) { _ in
             viewModel.reload()
         }
         .alert(item: $clearConfirmation) { confirmation in

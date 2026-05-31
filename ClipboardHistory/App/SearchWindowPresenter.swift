@@ -27,6 +27,7 @@ protocol SearchWindowPresenting: AnyObject {
 @MainActor
 final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDelegate {
     private static let frameAutosaveName = NSWindow.FrameAutosaveName("ClipboardHistorySearchWindow")
+    private static let minimumSize = NSSize(width: 520, height: 360)
 
     private var panel: NSPanel?
     private var previousApplication: NSRunningApplication?
@@ -35,7 +36,7 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
     private var historyWindowStaysOpen: Binding<Bool> = .constant(false)
     private var historyWindowAlwaysOnTop: Binding<Bool> = .constant(false)
     private var onWindowBehaviorChanged: (Bool) -> Void = { _ in }
-    private weak var windowModeButton: NSPopUpButton?
+    private var windowModeButtons: [HistoryWindowMode: NSButton] = [:]
 
     func show(
         viewModel: ClipboardHistoryViewModel,
@@ -74,13 +75,17 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         let panel = panel ?? makePanel()
         let preservedFrame = panel.frame
         panel.contentViewController = NSHostingController(rootView: contentView)
+        enforceMinimumSize(on: panel)
         panel.setFrame(preservedFrame, display: false)
+        enforceMinimumSize(on: panel)
         applyWindowBehavior(alwaysOnTop: historyWindowAlwaysOnTop.wrappedValue)
-        updateWindowModeButtonSelection()
+        updateWindowModeButtons()
 
         NSApplication.shared.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
+        enforceMinimumSize(on: panel)
+        panel.setFrame(preservedFrame, display: true)
         installOutsideClickMonitors()
     }
 
@@ -124,7 +129,7 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
         panel.level = .normal
-        panel.minSize = NSSize(width: 520, height: 360)
+        enforceMinimumSize(on: panel)
         panel.delegate = self
         panel.collectionBehavior = [.moveToActiveSpace]
         panel.standardWindowButton(.zoomButton)?.isEnabled = false
@@ -177,6 +182,12 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         panel?.saveFrame(usingName: Self.frameAutosaveName)
     }
 
+    private func enforceMinimumSize(on panel: NSPanel) {
+        let minimumFrame = NSRect(origin: .zero, size: Self.minimumSize)
+        panel.contentMinSize = panel.contentRect(forFrameRect: minimumFrame).size
+        panel.minSize = Self.minimumSize
+    }
+
     private var effectiveHistoryWindowStaysOpen: Bool {
         historyWindowStaysOpen.wrappedValue || historyWindowAlwaysOnTop.wrappedValue
     }
@@ -186,22 +197,40 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
     }
 
     private func addWindowModeAccessory(to panel: NSPanel) {
-        let modeButton = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 86, height: 24), pullsDown: false)
-        HistoryWindowMode.allCases.forEach { modeButton.addItem(withTitle: $0.title) }
-        modeButton.controlSize = .small
-        modeButton.toolTip = "窗口模式"
-        modeButton.target = self
-        modeButton.action = #selector(windowModeButtonChanged(_:))
+        windowModeButtons.removeAll()
+
+        let stack = NSStackView(frame: NSRect(x: 0, y: 0, width: 88, height: 24))
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 2
+
+        HistoryWindowMode.allCases.forEach { mode in
+            let button = NSButton(image: mode.image, target: self, action: #selector(windowModeButtonClicked(_:)))
+            button.identifier = mode.identifier
+            button.title = ""
+            button.imagePosition = .imageOnly
+            button.bezelStyle = .texturedRounded
+            button.setButtonType(.toggle)
+            button.controlSize = .small
+            button.toolTip = mode.toolTip
+            button.setAccessibilityLabel(mode.title)
+            button.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                button.widthAnchor.constraint(equalToConstant: 28),
+                button.heightAnchor.constraint(equalToConstant: 24)
+            ])
+            stack.addArrangedSubview(button)
+            windowModeButtons[mode] = button
+        }
 
         let accessory = NSTitlebarAccessoryViewController()
         accessory.layoutAttribute = .left
-        accessory.view = modeButton
+        accessory.view = stack
         panel.addTitlebarAccessoryViewController(accessory)
-        windowModeButton = modeButton
     }
 
-    @objc private func windowModeButtonChanged(_ sender: NSPopUpButton) {
-        guard let mode = HistoryWindowMode(title: sender.titleOfSelectedItem) else { return }
+    @objc private func windowModeButtonClicked(_ sender: NSButton) {
+        guard let mode = HistoryWindowMode(identifier: sender.identifier) else { return }
         applyWindowMode(mode)
     }
 
@@ -214,17 +243,25 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
             historyWindowAlwaysOnTop.wrappedValue = false
             historyWindowStaysOpen.wrappedValue = true
         case .alwaysOnTop:
+            historyWindowStaysOpen.wrappedValue = true
             historyWindowAlwaysOnTop.wrappedValue = true
         }
 
         let alwaysOnTop = historyWindowAlwaysOnTop.wrappedValue
         applyWindowBehavior(alwaysOnTop: alwaysOnTop)
         onWindowBehaviorChanged(alwaysOnTop)
-        updateWindowModeButtonSelection()
+        updateWindowModeButtons()
     }
 
-    private func updateWindowModeButtonSelection() {
-        windowModeButton?.selectItem(withTitle: currentWindowMode.title)
+    private func updateWindowModeButtons() {
+        let selectedMode = currentWindowMode
+        for (mode, button) in windowModeButtons {
+            let isSelected = mode == selectedMode
+            button.image = isSelected ? mode.selectedImage : mode.image
+            button.state = isSelected ? .on : .off
+            button.contentTintColor = isSelected ? .controlAccentColor : .secondaryLabelColor
+            button.setAccessibilityValue(isSelected ? "已选中" : "未选中")
+        }
     }
 
     private var currentWindowMode: HistoryWindowMode {
@@ -238,18 +275,18 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
     }
 }
 
-private enum HistoryWindowMode: CaseIterable {
+private enum HistoryWindowMode: CaseIterable, Hashable {
     case normal
     case staysOpen
     case alwaysOnTop
 
-    init?(title: String?) {
-        switch title {
-        case Self.normal.title:
+    init?(identifier: NSUserInterfaceItemIdentifier?) {
+        switch identifier?.rawValue {
+        case Self.normal.identifier.rawValue:
             self = .normal
-        case Self.staysOpen.title:
+        case Self.staysOpen.identifier.rawValue:
             self = .staysOpen
-        case Self.alwaysOnTop.title:
+        case Self.alwaysOnTop.identifier.rawValue:
             self = .alwaysOnTop
         default:
             return nil
@@ -265,5 +302,56 @@ private enum HistoryWindowMode: CaseIterable {
         case .alwaysOnTop:
             return "置顶"
         }
+    }
+
+    var identifier: NSUserInterfaceItemIdentifier {
+        switch self {
+        case .normal:
+            return NSUserInterfaceItemIdentifier("history-window-mode-normal")
+        case .staysOpen:
+            return NSUserInterfaceItemIdentifier("history-window-mode-stays-open")
+        case .alwaysOnTop:
+            return NSUserInterfaceItemIdentifier("history-window-mode-always-on-top")
+        }
+    }
+
+    var toolTip: String {
+        "\(title)窗口"
+    }
+
+    var image: NSImage {
+        Self.makeImage(symbolName: symbolName, description: title)
+    }
+
+    var selectedImage: NSImage {
+        Self.makeImage(symbolName: selectedSymbolName, description: "\(title)（已选中）")
+    }
+
+    private var symbolName: String {
+        switch self {
+        case .normal:
+            return "macwindow"
+        case .staysOpen:
+            return "pin"
+        case .alwaysOnTop:
+            return "pin.fill"
+        }
+    }
+
+    private var selectedSymbolName: String {
+        switch self {
+        case .normal:
+            return "checkmark.rectangle.fill"
+        case .staysOpen:
+            return "pin.fill"
+        case .alwaysOnTop:
+            return "arrow.up.to.line.compact"
+        }
+    }
+
+    private static func makeImage(symbolName: String, description: String) -> NSImage {
+        NSImage(systemSymbolName: symbolName, accessibilityDescription: description)
+            ?? NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: description)
+            ?? NSImage(size: NSSize(width: 16, height: 16))
     }
 }

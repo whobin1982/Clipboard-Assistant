@@ -561,7 +561,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         XCTAssertFalse(panel.collectionBehavior.contains(.fullScreenPrimary))
     }
 
-    func testWindowModeTitlebarButtonUpdatesBindingsAndPanelLevel() throws {
+    func testWindowModeTitlebarIconButtonsSetBindingsAndPanelLevel() throws {
         let presenter = SearchWindowPresenter()
         let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
         var staysOpen = false
@@ -597,32 +597,78 @@ final class SearchWindowPresenterTests: XCTestCase {
                 .compactMap { $0 as? NSPanel }
                 .first { $0.title == "剪贴板历史" && $0.isVisible }
         )
-        let modeButton = try XCTUnwrap(
+        let modeButtons = panel.titlebarAccessoryViewControllers
+            .compactMap { $0.view as? NSStackView }
+            .flatMap(\.arrangedSubviews)
+            .compactMap { $0 as? NSButton }
+        let buttonsByIdentifier = Dictionary(uniqueKeysWithValues: modeButtons.compactMap { button in
+            button.identifier.map { ($0.rawValue, button) }
+        })
+        let normalButton = try XCTUnwrap(buttonsByIdentifier["history-window-mode-normal"])
+        let staysOpenButton = try XCTUnwrap(buttonsByIdentifier["history-window-mode-stays-open"])
+        let alwaysOnTopButton = try XCTUnwrap(buttonsByIdentifier["history-window-mode-always-on-top"])
+
+        XCTAssertEqual(modeButtons.count, 3)
+        XCTAssertTrue(modeButtons.allSatisfy { $0.title.isEmpty && $0.image != nil })
+        XCTAssertEqual(normalButton.toolTip, "普通窗口")
+        XCTAssertEqual(staysOpenButton.toolTip, "常驻窗口")
+        XCTAssertEqual(alwaysOnTopButton.toolTip, "置顶窗口")
+        XCTAssertEqual(normalButton.state, .on)
+        XCTAssertEqual(staysOpenButton.state, .off)
+        XCTAssertEqual(alwaysOnTopButton.state, .off)
+        XCTAssertEqual(normalButton.image?.accessibilityDescription, "普通（已选中）")
+        XCTAssertEqual(staysOpenButton.image?.accessibilityDescription, "常驻")
+        XCTAssertEqual(alwaysOnTopButton.image?.accessibilityDescription, "置顶")
+        XCTAssertEqual(normalButton.contentTintColor, .controlAccentColor)
+        XCTAssertEqual(staysOpenButton.contentTintColor, .secondaryLabelColor)
+        XCTAssertEqual(alwaysOnTopButton.contentTintColor, .secondaryLabelColor)
+        XCTAssertTrue(
             panel.titlebarAccessoryViewControllers
                 .compactMap { $0.view as? NSPopUpButton }
-                .first
+                .isEmpty
         )
 
-        XCTAssertEqual(modeButton.numberOfItems, 3)
-        XCTAssertNotNil(modeButton.item(withTitle: "普通"))
-        XCTAssertNotNil(modeButton.item(withTitle: "常驻"))
-        XCTAssertNotNil(modeButton.item(withTitle: "置顶"))
-
-        modeButton.selectItem(withTitle: "置顶")
-        _ = modeButton.target?.perform(modeButton.action, with: modeButton)
-
-        XCTAssertFalse(staysOpen)
-        XCTAssertTrue(alwaysOnTop)
-        XCTAssertEqual(panel.level, .floating)
-        XCTAssertEqual(levelChanges, [true])
-
-        modeButton.selectItem(withTitle: "常驻")
-        _ = modeButton.target?.perform(modeButton.action, with: modeButton)
+        _ = staysOpenButton.target?.perform(staysOpenButton.action, with: staysOpenButton)
 
         XCTAssertTrue(staysOpen)
         XCTAssertFalse(alwaysOnTop)
         XCTAssertEqual(panel.level, .normal)
-        XCTAssertEqual(levelChanges, [true, false])
+        XCTAssertEqual(levelChanges, [false])
+        XCTAssertEqual(normalButton.state, .off)
+        XCTAssertEqual(staysOpenButton.state, .on)
+        XCTAssertEqual(alwaysOnTopButton.state, .off)
+        XCTAssertEqual(normalButton.image?.accessibilityDescription, "普通")
+        XCTAssertEqual(staysOpenButton.image?.accessibilityDescription, "常驻（已选中）")
+        XCTAssertEqual(alwaysOnTopButton.image?.accessibilityDescription, "置顶")
+        XCTAssertEqual(normalButton.contentTintColor, .secondaryLabelColor)
+        XCTAssertEqual(staysOpenButton.contentTintColor, .controlAccentColor)
+        XCTAssertEqual(alwaysOnTopButton.contentTintColor, .secondaryLabelColor)
+
+        _ = alwaysOnTopButton.target?.perform(alwaysOnTopButton.action, with: alwaysOnTopButton)
+
+        XCTAssertTrue(staysOpen)
+        XCTAssertTrue(alwaysOnTop)
+        XCTAssertEqual(panel.level, .floating)
+        XCTAssertEqual(levelChanges, [false, true])
+        XCTAssertEqual(normalButton.state, .off)
+        XCTAssertEqual(staysOpenButton.state, .off)
+        XCTAssertEqual(alwaysOnTopButton.state, .on)
+        XCTAssertEqual(normalButton.image?.accessibilityDescription, "普通")
+        XCTAssertEqual(staysOpenButton.image?.accessibilityDescription, "常驻")
+        XCTAssertEqual(alwaysOnTopButton.image?.accessibilityDescription, "置顶（已选中）")
+        XCTAssertEqual(normalButton.contentTintColor, .secondaryLabelColor)
+        XCTAssertEqual(staysOpenButton.contentTintColor, .secondaryLabelColor)
+        XCTAssertEqual(alwaysOnTopButton.contentTintColor, .controlAccentColor)
+
+        _ = normalButton.target?.perform(normalButton.action, with: normalButton)
+
+        XCTAssertFalse(staysOpen)
+        XCTAssertFalse(alwaysOnTop)
+        XCTAssertEqual(panel.level, .normal)
+        XCTAssertEqual(levelChanges, [false, true, false])
+        XCTAssertEqual(normalButton.state, .on)
+        XCTAssertEqual(staysOpenButton.state, .off)
+        XCTAssertEqual(alwaysOnTopButton.state, .off)
     }
 
     func testAlwaysOnTopControlsPanelLevel() throws {

@@ -78,7 +78,7 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNotNil(reader.readImage())
     }
 
-    func testSystemPasteboardReaderReadsImageFileURL() throws {
+    func testSystemPasteboardReaderIgnoresImageFileURL() throws {
         let imageURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("png")
@@ -89,7 +89,7 @@ final class PasteServiceTests: XCTestCase {
         pasteboard.writeObjects([imageURL as NSURL])
         let reader = SystemPasteboardReader(pasteboard: pasteboard)
 
-        XCTAssertNotNil(reader.readImage())
+        XCTAssertNil(reader.readImage())
     }
 
     func testCopyAndPasteCopiesThenSendsPasteCommand() throws {

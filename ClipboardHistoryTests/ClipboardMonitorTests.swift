@@ -77,6 +77,31 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertEqual(store.insertedItems[0].text, "hello")
     }
 
+    func testSuccessfulInsertPostsHistoryChangedNotification() {
+        let pasteboard = FakePasteboard(changeCount: 1, string: "hello")
+        let store = FakeClipboardStore()
+        let historyChanged = expectation(description: "history changed notification")
+        let observer = NotificationCenter.default.addObserver(
+            forName: .clipboardHistoryDidChange,
+            object: nil,
+            queue: nil
+        ) { _ in
+            historyChanged.fulfill()
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: FakeImageStorage(),
+            isRecordingPaused: { false }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+
+        wait(for: [historyChanged], timeout: 1)
+    }
+
     func testClipboardHistoryMarkedChangeDoesNotInsertAndIsNotRetried() {
         let pasteboard = FakePasteboard(changeCount: 1, string: "from history", isMarkedByClipboardHistory: true)
         let store = FakeClipboardStore()
@@ -131,10 +156,10 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertTrue(store.insertedItems.isEmpty)
     }
 
-    func testPasteboardWithTextAndImagePrefersText() {
+    func testPasteboardWithTextAndImageRecordsImageCopy() {
         let pasteboard = FakePasteboard(changeCount: 1, string: "copy me", image: makeImage())
         let store = FakeClipboardStore()
-        let imageStorage = FakeImageStorage()
+        let imageStorage = FakeImageStorage(result: ("/tmp/copied-image.png", "/tmp/copied-image-thumb.png"))
         let monitor = ClipboardMonitor(
             pasteboard: pasteboard,
             store: store,
@@ -146,9 +171,11 @@ final class ClipboardMonitorTests: XCTestCase {
         monitor.pollOnce()
 
         XCTAssertEqual(store.insertedItems.count, 1)
-        XCTAssertEqual(store.insertedItems[0].kind, .text)
-        XCTAssertEqual(store.insertedItems[0].text, "copy me")
-        XCTAssertTrue(imageStorage.savedImages.isEmpty)
+        XCTAssertEqual(store.insertedItems[0].kind, .image)
+        XCTAssertNil(store.insertedItems[0].text)
+        XCTAssertEqual(store.insertedItems[0].imagePath, "/tmp/copied-image.png")
+        XCTAssertEqual(store.insertedItems[0].thumbnailPath, "/tmp/copied-image-thumb.png")
+        XCTAssertEqual(imageStorage.savedImages.count, 1)
     }
 
     func testImagePasteboardSavesImageAndInsertsImageClipboardItemWithReturnedPaths() {

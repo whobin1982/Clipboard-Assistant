@@ -14,7 +14,20 @@ protocol ImageStoring {
 
 extension ImageStorage: ImageStoring {}
 
+extension Notification.Name {
+    static let clipboardHistoryDidChange = Notification.Name("ClipboardHistoryDidChange")
+}
+
 final class SystemPasteboardReader: PasteboardReading {
+    private static let directImageTypes: [NSPasteboard.PasteboardType] = [
+        .png,
+        .tiff,
+        NSPasteboard.PasteboardType("public.jpeg"),
+        NSPasteboard.PasteboardType("public.heic"),
+        NSPasteboard.PasteboardType("public.heif"),
+        NSPasteboard.PasteboardType("com.compuserve.gif")
+    ]
+
     private let pasteboard: NSPasteboard
 
     init(pasteboard: NSPasteboard = .general) {
@@ -30,30 +43,16 @@ final class SystemPasteboardReader: PasteboardReading {
     }
 
     func readImage() -> NSImage? {
-        if let image = pasteboard.readObjects(forClasses: [NSImage.self], options: nil)?.first as? NSImage {
+        for type in Self.directImageTypes {
+            guard
+                let imageData = pasteboard.data(forType: type),
+                let image = NSImage(data: imageData)
+            else {
+                continue
+            }
             return image
         }
-
-        if let pngData = pasteboard.data(forType: .png),
-           let image = NSImage(data: pngData) {
-            return image
-        }
-
-        if let tiffData = pasteboard.data(forType: .tiff),
-           let image = NSImage(data: tiffData) {
-            return image
-        }
-
-        let options: [NSPasteboard.ReadingOptionKey: Any] = [
-            .urlReadingFileURLsOnly: true,
-            .urlReadingContentsConformToTypes: NSImage.imageTypes
-        ]
-        guard
-            let imageURL = pasteboard.readObjects(forClasses: [NSURL.self], options: options)?.first as? URL
-        else {
-            return nil
-        }
-        return NSImage(contentsOf: imageURL)
+        return nil
     }
 
     func wasWrittenByClipboardHistory() -> Bool {
@@ -117,10 +116,16 @@ final class ClipboardMonitor {
             return
         }
 
+        if let image = pasteboard.readImage() {
+            recordImage(image, changeCount: currentChangeCount)
+            return
+        }
+
         if let string = pasteboard.readString(),
            !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             do {
                 try store.insert(.text(string))
+                postHistoryChanged()
                 markChangeHandled(currentChangeCount)
             } catch {
                 lastError = error
@@ -128,11 +133,19 @@ final class ClipboardMonitor {
             return
         }
 
-        guard let image = pasteboard.readImage() else {
-            markChangeHandled(currentChangeCount)
-            return
-        }
+        markChangeHandled(currentChangeCount)
+    }
 
+    private func markChangeHandled(_ changeCount: Int) {
+        lastProcessedChangeCount = changeCount
+        lastError = nil
+    }
+
+    private func postHistoryChanged() {
+        NotificationCenter.default.post(name: .clipboardHistoryDidChange, object: self)
+    }
+
+    private func recordImage(_ image: NSImage, changeCount: Int) {
         let id = UUID()
         let paths: (imagePath: String, thumbnailPath: String)
         do {
@@ -140,7 +153,7 @@ final class ClipboardMonitor {
         } catch {
             // Image encoding/storage failures are intentionally skipped so later
             // pasteboard changes can still be recorded.
-            markChangeHandled(currentChangeCount)
+            markChangeHandled(changeCount)
             lastError = error
             return
         }
@@ -156,14 +169,10 @@ final class ClipboardMonitor {
         )
         do {
             try store.insert(item)
-            markChangeHandled(currentChangeCount)
+            postHistoryChanged()
+            markChangeHandled(changeCount)
         } catch {
             lastError = error
         }
-    }
-
-    private func markChangeHandled(_ changeCount: Int) {
-        lastProcessedChangeCount = changeCount
-        lastError = nil
     }
 }
