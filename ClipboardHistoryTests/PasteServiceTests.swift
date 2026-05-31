@@ -14,6 +14,19 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNil(pasteboard.writtenImage)
     }
 
+    func testSystemPasteboardWriterMarksTextAsClipboardHistoryCopy() throws {
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        let writer = SystemPasteboardWriter(pasteboard: pasteboard)
+
+        try writer.writeText("Saved text")
+
+        XCTAssertEqual(pasteboard.string(forType: .string), "Saved text")
+        XCTAssertEqual(
+            pasteboard.string(forType: ClipboardPasteboardMarker.type),
+            ClipboardPasteboardMarker.value
+        )
+    }
+
     func testCopyImageWritesLoadedImageToPasteboard() throws {
         let pasteboard = FakePasteboardWriter()
         let service = PasteService(pasteboard: pasteboard, pasteEventSender: FakePasteEventSender())
@@ -28,6 +41,18 @@ final class PasteServiceTests: XCTestCase {
 
         XCTAssertNotNil(pasteboard.writtenImage)
         XCTAssertNil(pasteboard.writtenText)
+    }
+
+    func testSystemPasteboardWriterMarksImageAsClipboardHistoryCopy() throws {
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        let writer = SystemPasteboardWriter(pasteboard: pasteboard)
+
+        try writer.writeImage(makeTestImage())
+
+        XCTAssertEqual(
+            pasteboard.string(forType: ClipboardPasteboardMarker.type),
+            ClipboardPasteboardMarker.value
+        )
     }
 
     func testCopyAndPasteCopiesThenSendsPasteCommand() throws {

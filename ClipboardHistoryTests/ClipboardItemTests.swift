@@ -22,6 +22,52 @@ final class ClipboardItemTests: XCTestCase {
         let settings = AppSettings.default
         XCTAssertEqual(settings.retentionDays, 30)
         XCTAssertFalse(settings.launchAtLogin)
-        XCTAssertEqual(settings.shortcutDisplayName, "Option + Command + V")
+        XCTAssertEqual(settings.shortcutDisplayName, "⌥ + ⌘ + V")
+    }
+
+    func testDefaultSettingsUseKeyboardPasteDefaults() {
+        XCTAssertEqual(AppSettings.default.selectionAction, .paste)
+        XCTAssertTrue(AppSettings.default.closeWindowAfterSelection)
+        XCTAssertTrue(AppSettings.default.escapeClosesWindow)
+        XCTAssertEqual(AppSettings.default.retentionPolicy, .days(30))
+        XCTAssertEqual(AppSettings.default.shortcut.id, ShortcutDefinition.optionCommandV.id)
+    }
+
+    func testPermanentRetentionPolicyStoresZeroRetentionDaysForCompatibility() {
+        var settings = AppSettings.default
+        settings.retentionPolicy = .forever
+
+        XCTAssertEqual(settings.retentionDays, 0)
+    }
+
+    func testAvailableShortcutsContainFixedOptions() {
+        XCTAssertEqual(
+            ShortcutDefinition.available.map(\.id),
+            [
+                ShortcutDefinition.optionCommandV.id,
+                ShortcutDefinition.controlCommandV.id,
+                ShortcutDefinition.shiftCommandV.id
+            ]
+        )
+    }
+
+    func testCustomShortcutIsUsedWhenSelected() {
+        let shortcut = ShortcutDefinition.custom(
+            displayName: "⌃ + ⌥ + P",
+            keyCode: 35,
+            requiresCommand: false,
+            requiresOption: true,
+            requiresControl: true,
+            requiresShift: false
+        )
+        let settings = AppSettings(
+            retentionDays: 30,
+            launchAtLogin: false,
+            shortcutID: ShortcutDefinition.customID,
+            customShortcut: shortcut
+        )
+
+        XCTAssertEqual(settings.shortcut, shortcut)
+        XCTAssertEqual(settings.shortcutDisplayName, "⌃ + ⌥ + P")
     }
 }

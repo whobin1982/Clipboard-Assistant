@@ -55,6 +55,24 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertEqual(store.insertedItems[0].text, "hello")
     }
 
+    func testClipboardHistoryMarkedChangeDoesNotInsertAndIsNotRetried() {
+        let pasteboard = FakePasteboard(changeCount: 1, string: "from history", isMarkedByClipboardHistory: true)
+        let store = FakeClipboardStore()
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: FakeImageStorage(),
+            isRecordingPaused: { false }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+        pasteboard.isMarkedByClipboardHistory = false
+        monitor.pollOnce()
+
+        XCTAssertTrue(store.insertedItems.isEmpty)
+    }
+
     func testWhitespaceOnlyTextDoesNotInsert() {
         let pasteboard = FakePasteboard(changeCount: 1, string: " \n\t ")
         let store = FakeClipboardStore()
@@ -208,11 +226,18 @@ private final class FakePasteboard: PasteboardReading {
     var changeCount: Int
     var string: String?
     var image: NSImage?
+    var isMarkedByClipboardHistory: Bool
 
-    init(changeCount: Int, string: String? = nil, image: NSImage? = nil) {
+    init(
+        changeCount: Int,
+        string: String? = nil,
+        image: NSImage? = nil,
+        isMarkedByClipboardHistory: Bool = false
+    ) {
         self.changeCount = changeCount
         self.string = string
         self.image = image
+        self.isMarkedByClipboardHistory = isMarkedByClipboardHistory
     }
 
     func readString() -> String? {
@@ -221,6 +246,10 @@ private final class FakePasteboard: PasteboardReading {
 
     func readImage() -> NSImage? {
         image
+    }
+
+    func wasWrittenByClipboardHistory() -> Bool {
+        isMarkedByClipboardHistory
     }
 }
 

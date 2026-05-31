@@ -1,6 +1,29 @@
 import Foundation
 
+enum ClipboardSelectionAction: String, Codable, Equatable, CaseIterable, Identifiable {
+    case paste
+    case copyOnly
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .paste:
+            return "自动粘贴"
+        case .copyOnly:
+            return "只复制到剪贴板"
+        }
+    }
+}
+
+enum RetentionPolicy: Equatable, Hashable {
+    case days(Int)
+    case forever
+}
+
 struct ShortcutDefinition: Codable, Equatable, Identifiable {
+    static let customID = "custom"
+
     let id: String
     let displayName: String
     let keyCode: UInt16
@@ -11,7 +34,7 @@ struct ShortcutDefinition: Codable, Equatable, Identifiable {
 
     static let optionCommandV = ShortcutDefinition(
         id: "option-command-v",
-        displayName: "Option + Command + V",
+        displayName: "⌥ + ⌘ + V",
         keyCode: 9,
         requiresCommand: true,
         requiresOption: true,
@@ -19,9 +42,29 @@ struct ShortcutDefinition: Codable, Equatable, Identifiable {
         requiresShift: false
     )
 
+    static let controlCommandV = ShortcutDefinition(
+        id: "control-command-v",
+        displayName: "⌃ + ⌘ + V",
+        keyCode: 9,
+        requiresCommand: true,
+        requiresOption: false,
+        requiresControl: true,
+        requiresShift: false
+    )
+
+    static let shiftCommandV = ShortcutDefinition(
+        id: "shift-command-v",
+        displayName: "⇧ + ⌘ + V",
+        keyCode: 9,
+        requiresCommand: true,
+        requiresOption: false,
+        requiresControl: false,
+        requiresShift: true
+    )
+
     static let controlOptionV = ShortcutDefinition(
         id: "control-option-v",
-        displayName: "Control + Option + V",
+        displayName: "⌃ + ⌥ + V",
         keyCode: 9,
         requiresCommand: false,
         requiresOption: true,
@@ -31,15 +74,50 @@ struct ShortcutDefinition: Codable, Equatable, Identifiable {
 
     static let available: [ShortcutDefinition] = [
         .optionCommandV,
-        .controlOptionV
+        .controlCommandV,
+        .shiftCommandV
     ]
 
     static func definition(for id: String) -> ShortcutDefinition {
-        available.first { $0.id == id } ?? .optionCommandV
+        if id == controlOptionV.id {
+            return .controlOptionV
+        }
+        return available.first { $0.id == id } ?? .optionCommandV
+    }
+
+    static func custom(
+        displayName: String,
+        keyCode: UInt16,
+        requiresCommand: Bool,
+        requiresOption: Bool,
+        requiresControl: Bool,
+        requiresShift: Bool
+    ) -> ShortcutDefinition {
+        ShortcutDefinition(
+            id: customID,
+            displayName: displayName,
+            keyCode: keyCode,
+            requiresCommand: requiresCommand,
+            requiresOption: requiresOption,
+            requiresControl: requiresControl,
+            requiresShift: requiresShift
+        )
     }
 
     static func definition(displayName: String) -> ShortcutDefinition {
-        available.first { $0.displayName == displayName } ?? .optionCommandV
+        switch displayName {
+        case "Option + Command + V":
+            return .optionCommandV
+        case "Control + Option + V":
+            return .controlOptionV
+        case "Control + Command + V":
+            return .controlCommandV
+        case "Shift + Command + V":
+            return .shiftCommandV
+        default:
+            break
+        }
+        return available.first { $0.displayName == displayName } ?? .optionCommandV
     }
 }
 
@@ -47,9 +125,30 @@ struct AppSettings: Codable, Equatable {
     var retentionDays: Int
     var launchAtLogin: Bool
     var shortcutID: String
+    var customShortcut: ShortcutDefinition?
+    var selectionAction: ClipboardSelectionAction
+    var closeWindowAfterSelection: Bool
+    var escapeClosesWindow: Bool
+
+    var retentionPolicy: RetentionPolicy {
+        get {
+            retentionDays <= 0 ? .forever : .days(retentionDays)
+        }
+        set {
+            switch newValue {
+            case .days(let days):
+                retentionDays = max(1, days)
+            case .forever:
+                retentionDays = 0
+            }
+        }
+    }
 
     var shortcut: ShortcutDefinition {
-        ShortcutDefinition.definition(for: shortcutID)
+        if shortcutID == ShortcutDefinition.customID, let customShortcut {
+            return customShortcut
+        }
+        return ShortcutDefinition.definition(for: shortcutID)
     }
 
     var shortcutDisplayName: String {
@@ -59,17 +158,29 @@ struct AppSettings: Codable, Equatable {
     static let `default` = AppSettings(
         retentionDays: 30,
         launchAtLogin: false,
-        shortcutID: ShortcutDefinition.optionCommandV.id
+        shortcutID: ShortcutDefinition.optionCommandV.id,
+        customShortcut: nil,
+        selectionAction: .paste,
+        closeWindowAfterSelection: true,
+        escapeClosesWindow: true
     )
 
     init(
         retentionDays: Int,
         launchAtLogin: Bool,
-        shortcutID: String = ShortcutDefinition.optionCommandV.id
+        shortcutID: String = ShortcutDefinition.optionCommandV.id,
+        customShortcut: ShortcutDefinition? = nil,
+        selectionAction: ClipboardSelectionAction = .paste,
+        closeWindowAfterSelection: Bool = true,
+        escapeClosesWindow: Bool = true
     ) {
         self.retentionDays = retentionDays
         self.launchAtLogin = launchAtLogin
         self.shortcutID = shortcutID
+        self.customShortcut = customShortcut
+        self.selectionAction = selectionAction
+        self.closeWindowAfterSelection = closeWindowAfterSelection
+        self.escapeClosesWindow = escapeClosesWindow
     }
 
     init(
@@ -80,13 +191,21 @@ struct AppSettings: Codable, Equatable {
         self.retentionDays = retentionDays
         self.launchAtLogin = launchAtLogin
         shortcutID = ShortcutDefinition.definition(displayName: shortcutDisplayName).id
+        customShortcut = nil
+        selectionAction = .paste
+        closeWindowAfterSelection = true
+        escapeClosesWindow = true
     }
 
     private enum CodingKeys: String, CodingKey {
         case retentionDays
         case launchAtLogin
         case shortcutID
+        case customShortcut
         case shortcutDisplayName
+        case selectionAction
+        case closeWindowAfterSelection
+        case escapeClosesWindow
     }
 
     init(from decoder: Decoder) throws {
@@ -100,6 +219,13 @@ struct AppSettings: Codable, Equatable {
         } else {
             shortcutID = ShortcutDefinition.optionCommandV.id
         }
+        customShortcut = try container.decodeIfPresent(ShortcutDefinition.self, forKey: .customShortcut)
+        if shortcutID == ShortcutDefinition.customID, customShortcut == nil {
+            shortcutID = ShortcutDefinition.optionCommandV.id
+        }
+        selectionAction = try container.decodeIfPresent(ClipboardSelectionAction.self, forKey: .selectionAction) ?? .paste
+        closeWindowAfterSelection = try container.decodeIfPresent(Bool.self, forKey: .closeWindowAfterSelection) ?? true
+        escapeClosesWindow = try container.decodeIfPresent(Bool.self, forKey: .escapeClosesWindow) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -107,6 +233,10 @@ struct AppSettings: Codable, Equatable {
         try container.encode(retentionDays, forKey: .retentionDays)
         try container.encode(launchAtLogin, forKey: .launchAtLogin)
         try container.encode(shortcutID, forKey: .shortcutID)
+        try container.encodeIfPresent(customShortcut, forKey: .customShortcut)
         try container.encode(shortcutDisplayName, forKey: .shortcutDisplayName)
+        try container.encode(selectionAction, forKey: .selectionAction)
+        try container.encode(closeWindowAfterSelection, forKey: .closeWindowAfterSelection)
+        try container.encode(escapeClosesWindow, forKey: .escapeClosesWindow)
     }
 }

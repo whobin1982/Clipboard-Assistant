@@ -5,6 +5,7 @@ protocol PasteboardReading {
     var changeCount: Int { get }
     func readString() -> String?
     func readImage() -> NSImage?
+    func wasWrittenByClipboardHistory() -> Bool
 }
 
 protocol ImageStoring {
@@ -30,6 +31,10 @@ final class SystemPasteboardReader: PasteboardReading {
 
     func readImage() -> NSImage? {
         pasteboard.readObjects(forClasses: [NSImage.self], options: nil)?.first as? NSImage
+    }
+
+    func wasWrittenByClipboardHistory() -> Bool {
+        pasteboard.string(forType: ClipboardPasteboardMarker.type) == ClipboardPasteboardMarker.value
     }
 }
 
@@ -79,6 +84,11 @@ final class ClipboardMonitor {
 
         let currentChangeCount = pasteboard.changeCount
         guard currentChangeCount != lastProcessedChangeCount else { return }
+
+        if pasteboard.wasWrittenByClipboardHistory() {
+            markChangeHandled(currentChangeCount)
+            return
+        }
 
         if let string = pasteboard.readString(),
            !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

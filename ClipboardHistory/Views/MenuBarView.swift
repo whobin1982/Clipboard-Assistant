@@ -5,7 +5,7 @@ struct MenuBarView: View {
     @EnvironmentObject private var environment: AppEnvironment
 
     var body: some View {
-        Button("Open Search") {
+        Button("打开剪贴板历史") {
             environment.openSearch()
         }
 
@@ -23,29 +23,29 @@ struct MenuBarView: View {
 
         Divider()
 
-        Button(environment.isRecordingPaused ? "Resume Recording" : "Pause Recording") {
+        Button(environment.isRecordingPaused ? "继续记录剪贴板" : "暂停记录剪贴板") {
             environment.isRecordingPaused.toggle()
         }
 
-        Menu("Clear History") {
-            Button("Clear Non-Favorites") {
+        Menu("清空历史") {
+            Button("清空非收藏记录") {
                 confirmClearNonFavorites()
             }
 
-            Button("Clear All Records", role: .destructive) {
+            Button("清空全部记录", role: .destructive) {
                 confirmClearAll()
             }
         }
 
         Divider()
 
-        Button("Settings") {
+        Button("设置") {
             environment.openSettings()
         }
 
         Divider()
 
-        Button("Quit") {
+        Button("退出") {
             NSApplication.shared.terminate(nil)
         }
         .onAppear {
@@ -55,9 +55,9 @@ struct MenuBarView: View {
 
     private func confirmClearNonFavorites() {
         guard confirmClear(
-            title: "Clear Non-Favorites?",
-            message: "This removes every clipboard record that is not marked as a favorite.",
-            confirmTitle: "Clear Non-Favorites"
+            title: "清空非收藏记录？",
+            message: "这会删除所有没有标记为收藏的剪贴板记录。",
+            confirmTitle: "清空非收藏记录"
         ) else {
             return
         }
@@ -67,9 +67,9 @@ struct MenuBarView: View {
 
     private func confirmClearAll() {
         guard confirmClear(
-            title: "Clear All Records?",
-            message: "This removes every clipboard record, including favorites.",
-            confirmTitle: "Clear All Records"
+            title: "清空全部记录？",
+            message: "这会删除所有剪贴板记录，包括收藏记录。",
+            confirmTitle: "清空全部记录"
         ) else {
             return
         }
@@ -83,7 +83,7 @@ struct MenuBarView: View {
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: confirmTitle)
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "取消")
         return alert.runModal() == .alertFirstButtonReturn
     }
 }
@@ -93,11 +93,11 @@ private struct RecordMenusView: View {
     let onPaste: (ClipboardItem) -> Void
 
     var body: some View {
-        Menu("Recent Records") {
+        Menu("最近记录") {
             recordButtons(for: Array(viewModel.items.prefix(8)))
         }
 
-        Menu("Favorites") {
+        Menu("收藏记录") {
             recordButtons(for: viewModel.items.filter(\.isFavorite))
         }
     }
@@ -105,7 +105,7 @@ private struct RecordMenusView: View {
     @ViewBuilder
     private func recordButtons(for items: [ClipboardItem]) -> some View {
         if items.isEmpty {
-            Text("No Records")
+            Text("暂无记录")
                 .foregroundStyle(.secondary)
         } else {
             ForEach(items) { item in
@@ -120,9 +120,9 @@ private struct RecordMenusView: View {
         switch item.kind {
         case .text:
             let value = item.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return value.isEmpty ? "Empty Text" : String(value.prefix(48))
+            return value.isEmpty ? "空文本" : String(value.prefix(48))
         case .image:
-            return "Image - \(item.copiedAt.formatted(date: .omitted, time: .shortened))"
+            return "图片 · \(item.copiedAt.formatted(date: .omitted, time: .shortened))"
         }
     }
 }

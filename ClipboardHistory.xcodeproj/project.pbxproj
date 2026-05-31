@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		4D0F3C118D98D9E9127FD527 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18132A4F337086A4EAF35C52 /* MenuBarView.swift */; };
 		526CDF1F468A3610F5E1A08F /* ClipboardHistorySmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2B55E512F6E53C76A4E34F8 /* ClipboardHistorySmokeTests.swift */; };
+		5B22A4472DB4412BB1A60101 /* ClipboardSelectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B22A4472DB4412BB1A60100 /* ClipboardSelectionController.swift */; };
+		5B22A4472DB4412BB1A60103 /* ClipboardSelectionControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B22A4472DB4412BB1A60102 /* ClipboardSelectionControllerTests.swift */; };
 		6E4C1A0F2B3D4E5F60718291 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4C1A0F2B3D4E5F60718292 /* ClipboardMonitor.swift */; };
 		6E4C1A0F2B3D4E5F60718294 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */; };
 		6A4A1E7D7F834F3D907A1F22 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47BD1C4373414A48A4071CB7 /* AppSettings.swift */; };
@@ -18,6 +20,7 @@
 		74294E60A13F4FD4AA940901 /* ClipboardPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74294E60A13F4FD4AA940900 /* ClipboardPopupView.swift */; };
 		74294E60A13F4FD4AA940903 /* ClipboardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74294E60A13F4FD4AA940902 /* ClipboardRowView.swift */; };
 		74294E60A13F4FD4AA940905 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74294E60A13F4FD4AA940904 /* SettingsViewModel.swift */; };
+		74294E60A13F4FD4AA940907 /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74294E60A13F4FD4AA940906 /* ShortcutRecorderView.swift */; };
 		76E03D29C38B4AA08F9F1101 /* SettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76E03D29C38B4AA08F9F1100 /* SettingsViewModelTests.swift */; };
 		79F0B401D0A747D9B0D08A01 /* RetentionCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A00 /* RetentionCleaner.swift */; };
 		79F0B401D0A747D9B0D08A03 /* ClipboardHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */; };
@@ -55,6 +58,8 @@
 		290423EEB60818D1FEAF9F19 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		47BD1C4373414A48A4071CB7 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		53AF7D8DA531E0C01DEEDF37 /* ClipboardHistoryApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryApp.swift; sourceTree = "<group>"; };
+		5B22A4472DB4412BB1A60100 /* ClipboardSelectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSelectionController.swift; sourceTree = "<group>"; };
+		5B22A4472DB4412BB1A60102 /* ClipboardSelectionControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSelectionControllerTests.swift; sourceTree = "<group>"; };
 		6E4C1A0F2B3D4E5F60718292 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
 		727B8E81225C4F5A9FBB3700 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
@@ -63,6 +68,7 @@
 		74294E60A13F4FD4AA940900 /* ClipboardPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPopupView.swift; sourceTree = "<group>"; };
 		74294E60A13F4FD4AA940902 /* ClipboardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardRowView.swift; sourceTree = "<group>"; };
 		74294E60A13F4FD4AA940904 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
+		74294E60A13F4FD4AA940906 /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderView.swift; sourceTree = "<group>"; };
 		76E03D29C38B4AA08F9F1100 /* SettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModelTests.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A00 /* RetentionCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionCleaner.swift; sourceTree = "<group>"; };
 		79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryViewModel.swift; sourceTree = "<group>"; };
@@ -107,6 +113,7 @@
 				74294E60A13F4FD4AA940902 /* ClipboardRowView.swift */,
 				18132A4F337086A4EAF35C52 /* MenuBarView.swift */,
 				290423EEB60818D1FEAF9F19 /* SettingsView.swift */,
+				74294E60A13F4FD4AA940906 /* ShortcutRecorderView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -116,6 +123,7 @@
 			children = (
 				F2B55E512F6E53C76A4E34F8 /* ClipboardHistorySmokeTests.swift */,
 				2DA4806B9E8D4D3F90D0DB1C /* ClipboardItemTests.swift */,
+				5B22A4472DB4412BB1A60102 /* ClipboardSelectionControllerTests.swift */,
 				B47A2C9E0F18464CB0A3D104 /* ClipboardStoreTests.swift */,
 				79F0B401D0A747D9B0D08A06 /* ClipboardHistoryViewModelTests.swift */,
 				6E4C1A0F2B3D4E5F60718293 /* ClipboardMonitorTests.swift */,
@@ -174,6 +182,7 @@
 			isa = PBXGroup;
 			children = (
 				79F0B401D0A747D9B0D08A02 /* ClipboardHistoryViewModel.swift */,
+				5B22A4472DB4412BB1A60100 /* ClipboardSelectionController.swift */,
 				74294E60A13F4FD4AA940904 /* SettingsViewModel.swift */,
 			);
 			path = ViewModels;
@@ -273,6 +282,7 @@
 			files = (
 				526CDF1F468A3610F5E1A08F /* ClipboardHistorySmokeTests.swift in Sources */,
 				A2750EEA1EE54BC7A65B0A45 /* ClipboardItemTests.swift in Sources */,
+				5B22A4472DB4412BB1A60103 /* ClipboardSelectionControllerTests.swift in Sources */,
 				B47A2C9E0F18464CB0A3D109 /* ClipboardStoreTests.swift in Sources */,
 				79F0B401D0A747D9B0D08A07 /* ClipboardHistoryViewModelTests.swift in Sources */,
 				6E4C1A0F2B3D4E5F60718294 /* ClipboardMonitorTests.swift in Sources */,
@@ -300,6 +310,7 @@
 				7F91D6A3C4B5482B9A102345 /* LoginItemService.swift in Sources */,
 				727B8E81225C4F5A9FBB3701 /* PasteService.swift in Sources */,
 				79F0B401D0A747D9B0D08A03 /* ClipboardHistoryViewModel.swift in Sources */,
+				5B22A4472DB4412BB1A60101 /* ClipboardSelectionController.swift in Sources */,
 				8BB0EA48158B4A8B9B2D6400 /* SearchWindowPresenter.swift in Sources */,
 				74294E60A13F4FD4AA940905 /* SettingsViewModel.swift in Sources */,
 				79F0B401D0A747D9B0D08A01 /* RetentionCleaner.swift in Sources */,
@@ -308,6 +319,7 @@
 				74294E60A13F4FD4AA940901 /* ClipboardPopupView.swift in Sources */,
 				4D0F3C118D98D9E9127FD527 /* MenuBarView.swift in Sources */,
 				8D31E4740482E3F516A419D6 /* SettingsView.swift in Sources */,
+				74294E60A13F4FD4AA940907 /* ShortcutRecorderView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -390,7 +402,11 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.local.ClipboardHistory;
+				MARKETING_VERSION = 0.2.0;
+				CURRENT_PROJECT_VERSION = 1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hubin.ClipboardAssistant;
+				PRODUCT_MODULE_NAME = ClipboardHistory;
+				PRODUCT_NAME = "剪贴板助手";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -408,7 +424,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.local.ClipboardHistoryTests;
 				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClipboardHistory.app/Contents/MacOS/ClipboardHistory";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/剪贴板助手.app/Contents/MacOS/剪贴板助手";
 			};
 			name = Release;
 		};
@@ -424,7 +440,11 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.local.ClipboardHistory;
+				MARKETING_VERSION = 0.2.0;
+				CURRENT_PROJECT_VERSION = 1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hubin.ClipboardAssistant;
+				PRODUCT_MODULE_NAME = ClipboardHistory;
+				PRODUCT_NAME = "剪贴板助手";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -442,7 +462,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.local.ClipboardHistoryTests;
 				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClipboardHistory.app/Contents/MacOS/ClipboardHistory";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/剪贴板助手.app/Contents/MacOS/剪贴板助手";
 			};
 			name = Debug;
 		};

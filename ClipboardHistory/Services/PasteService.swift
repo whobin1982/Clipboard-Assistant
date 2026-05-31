@@ -7,6 +7,11 @@ protocol PasteboardWriting {
     func writeImage(_ image: NSImage) throws
 }
 
+enum ClipboardPasteboardMarker {
+    static let type = NSPasteboard.PasteboardType("com.hubin.ClipboardAssistant.internal-copy")
+    static let value = "clipboard-assistant"
+}
+
 protocol PasteEventSending {
     func sendPasteCommand() throws
 }
@@ -22,17 +27,17 @@ enum PasteServiceError: Error, Equatable, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingText:
-            return "Text clipboard item is missing text."
+            return "这条文本记录没有可复制的内容。"
         case .missingImagePath:
-            return "Image clipboard item is missing an image path."
+            return "这条图片记录缺少图片文件路径。"
         case .unreadableImage(let path):
-            return "Image clipboard item could not be loaded from \(path)."
+            return "无法读取图片文件：\(path)。"
         case .pasteboardWriteFailed:
-            return "Clipboard item could not be written to the pasteboard."
+            return "无法写入系统剪贴板。"
         case .pasteEventCreationFailed:
-            return "Paste keyboard event could not be created."
+            return "无法创建自动粘贴按键事件。"
         case .accessibilityPermissionMissing:
-            return "Accessibility permission is required to send the paste command."
+            return "需要在系统设置里开启辅助功能权限，才能自动执行粘贴。"
         }
     }
 }
@@ -77,6 +82,19 @@ final class PasteService {
     }
 }
 
+enum AccessibilityPermission {
+    private static var didRequestPromptThisSession = false
+
+    static func requestIfNeeded() {
+        guard !AXIsProcessTrusted(), !didRequestPromptThisSession else { return }
+
+        didRequestPromptThisSession = true
+        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        let options = [promptKey: true] as CFDictionary
+        AXIsProcessTrustedWithOptions(options)
+    }
+}
+
 final class SystemPasteboardWriter: PasteboardWriting {
     private let pasteboard: NSPasteboard
 
@@ -86,14 +104,21 @@ final class SystemPasteboardWriter: PasteboardWriting {
 
     func writeText(_ text: String) throws {
         pasteboard.clearContents()
-        guard pasteboard.setString(text, forType: .string) else {
+        pasteboard.declareTypes([.string, ClipboardPasteboardMarker.type], owner: nil)
+        guard
+            pasteboard.setString(text, forType: .string),
+            pasteboard.setString(ClipboardPasteboardMarker.value, forType: ClipboardPasteboardMarker.type)
+        else {
             throw PasteServiceError.pasteboardWriteFailed
         }
     }
 
     func writeImage(_ image: NSImage) throws {
         pasteboard.clearContents()
-        guard pasteboard.writeObjects([image]) else {
+        guard
+            pasteboard.writeObjects([image]),
+            pasteboard.setString(ClipboardPasteboardMarker.value, forType: ClipboardPasteboardMarker.type)
+        else {
             throw PasteServiceError.pasteboardWriteFailed
         }
     }
@@ -102,12 +127,13 @@ final class SystemPasteboardWriter: PasteboardWriting {
 final class CGEventPasteEventSender: PasteEventSending {
     private let eventSource: CGEventSource?
 
-    init(eventSource: CGEventSource? = CGEventSource(stateID: .hidSystemState)) {
+    init(eventSource: CGEventSource? = CGEventSource(stateID: .combinedSessionState)) {
         self.eventSource = eventSource
     }
 
     func sendPasteCommand() throws {
         guard AXIsProcessTrusted() else {
+            AccessibilityPermission.requestIfNeeded()
             throw PasteServiceError.accessibilityPermissionMissing
         }
 

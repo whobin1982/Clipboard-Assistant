@@ -122,7 +122,7 @@ final class AppEnvironment: ObservableObject {
                 try environment.runRetentionCleanup(settings: settings)
                 environment.historyViewModel.reload()
             } catch {
-                environment.lastErrorMessage = "Retention cleanup failed: \(error.localizedDescription)"
+                environment.lastErrorMessage = "清理过期记录失败：\(error.localizedDescription)"
             }
             environment.startPeriodicRetentionCleanup()
 
@@ -137,7 +137,7 @@ final class AppEnvironment: ObservableObject {
             monitor.start()
 
             let shortcutService = ShortcutService(shortcut: settings.shortcut) { [weak environment] in
-                environment?.openSearch()
+                environment?.openSearch(previousApplication: nil)
             }
             environment.shortcutService = shortcutService
             environment.settingsViewModel.setShortcutDidChange { [weak shortcutService] shortcut in
@@ -148,15 +148,24 @@ final class AppEnvironment: ObservableObject {
             return environment
         } catch {
             return AppEnvironment(
-                startupErrorMessage: "Clipboard History could not start live services: \(error.localizedDescription)"
+                startupErrorMessage: "剪贴板历史无法启动核心服务：\(error.localizedDescription)"
             )
         }
     }
 
     func openSearch() {
+        openSearch(previousApplication: nil)
+    }
+
+    func openSearch(previousApplication: NSRunningApplication?) {
         historyViewModel.reload()
         searchWindowPresenter.show(
             viewModel: historyViewModel,
+            previousApplication: previousApplication,
+            escapeClosesWindow: settingsViewModel.settings.escapeClosesWindow,
+            onClose: { [weak self] in
+                self?.searchWindowPresenter.orderOut()
+            },
             onPaste: pasteFromSearchWindow,
             onCopy: copy,
             onDelete: delete
@@ -181,14 +190,21 @@ final class AppEnvironment: ObservableObject {
     }
 
     private func pasteFromSearchWindow(_ item: ClipboardItem) {
+        let settings = settingsViewModel.settings
         do {
             try pasteService.copy(item)
             try markUsed(item)
             historyViewModel.reload()
-            searchWindowPresenter.orderOut()
+
+            if settings.closeWindowAfterSelection {
+                searchWindowPresenter.orderOut()
+            }
+
+            guard settings.selectionAction == .paste else { return }
+
             let previousApplication = searchWindowPresenter.consumePreviousApplication()
             reactivate(previousApplication)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
                 Task { @MainActor in
                     self?.sendPasteCommand()
                 }
@@ -275,7 +291,7 @@ final class AppEnvironment: ObservableObject {
             settingsViewModel.refreshStorageUsage()
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = "Retention cleanup failed: \(error.localizedDescription)"
+            lastErrorMessage = "清理过期记录失败：\(error.localizedDescription)"
         }
     }
 
@@ -289,6 +305,7 @@ final class AppEnvironment: ObservableObject {
         settings: AppSettings,
         now: Date = Date()
     ) throws {
+        guard settings.retentionDays > 0 else { return }
         let cutoff = now.addingTimeInterval(TimeInterval(-settings.retentionDays * 24 * 60 * 60))
         let affectedItems = try store.fetchAll().filter { !$0.isFavorite && $0.copiedAt < cutoff }
         try store.deleteNonFavorites(olderThan: cutoff)

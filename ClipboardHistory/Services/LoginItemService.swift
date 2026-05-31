@@ -7,7 +7,7 @@ enum LoginItemServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedOperatingSystem:
-            return "Launch at login requires macOS 13 or later."
+            return "开机自动启动需要 macOS 13 或更高版本。"
         }
     }
 }

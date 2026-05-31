@@ -4,7 +4,7 @@ import XCTest
 final class ShortcutServiceTests: XCTestCase {
     func testDefaultSettingsUseDefaultShortcutDefinition() {
         XCTAssertEqual(AppSettings.default.shortcutID, ShortcutDefinition.optionCommandV.id)
-        XCTAssertEqual(AppSettings.default.shortcutDisplayName, "Option + Command + V")
+        XCTAssertEqual(AppSettings.default.shortcutDisplayName, "⌥ + ⌘ + V")
     }
 
     func testShortcutServiceUpdatesCurrentShortcut() {
@@ -12,6 +12,6 @@ final class ShortcutServiceTests: XCTestCase {
 
         service.updateShortcut(.controlOptionV)
 
-        XCTAssertEqual(service.shortcutDisplayName, "Control + Option + V")
+        XCTAssertEqual(service.shortcutDisplayName, "⌃ + ⌥ + V")
     }
 }

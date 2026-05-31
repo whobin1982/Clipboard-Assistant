@@ -23,6 +23,19 @@ final class RetentionCleanerTests: XCTestCase {
         XCTAssertEqual(store.deletedOlderThan, now.addingTimeInterval(-30 * 24 * 60 * 60))
         XCTAssertEqual(remainingIDs, [oldFavorite.id, recentRegular.id])
     }
+
+    func testRunKeepsAllItemsWhenRetentionIsForever() throws {
+        let oldItem = ClipboardItem.text("old", copiedAt: Date(timeIntervalSince1970: 0))
+        let store = RetentionCleanerFakeStore(items: [oldItem])
+        let cleaner = RetentionCleaner(store: store)
+        var settings = AppSettings.default
+        settings.retentionPolicy = .forever
+
+        try cleaner.run(now: Date(timeIntervalSince1970: 10_000_000), settings: settings)
+
+        XCTAssertNil(store.deletedOlderThan)
+        XCTAssertEqual(try store.fetchAll().map(\.id), [oldItem.id])
+    }
 }
 
 private final class RetentionCleanerFakeStore: ClipboardStore {

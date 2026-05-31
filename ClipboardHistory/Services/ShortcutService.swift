@@ -1,8 +1,10 @@
 import AppKit
+import Carbon.HIToolbox
 import Foundation
 
 final class ShortcutService {
-    static let defaultShortcutDisplayName = "Option + Command + V"
+    static let defaultShortcutDisplayName = "⌥ + ⌘ + V"
+    private static let hotKeySignature = OSType(0x434C4853)
 
     var shortcutDisplayName: String {
         shortcut.displayName
@@ -10,8 +12,8 @@ final class ShortcutService {
 
     private let openPopup: () -> Void
     private var shortcut: ShortcutDefinition
-    private var globalMonitor: Any?
-    private var localMonitor: Any?
+    private var hotKeyRef: EventHotKeyRef?
+    private var eventHandlerRef: EventHandlerRef?
 
     init(shortcut: ShortcutDefinition = .optionCommandV, openPopup: @escaping () -> Void) {
         self.shortcut = shortcut
@@ -23,63 +25,116 @@ final class ShortcutService {
     }
 
     func start() {
-        guard globalMonitor == nil, localMonitor == nil else { return }
-
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handle(event)
-        }
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
-            return self.handle(event) ? nil : event
-        }
+        guard hotKeyRef == nil else { return }
+        installEventHandlerIfNeeded()
+        registerHotKey()
     }
 
     func stop() {
-        if let globalMonitor {
-            NSEvent.removeMonitor(globalMonitor)
-            self.globalMonitor = nil
+        if let hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+            self.hotKeyRef = nil
         }
-        if let localMonitor {
-            NSEvent.removeMonitor(localMonitor)
-            self.localMonitor = nil
+
+        if let eventHandlerRef {
+            RemoveEventHandler(eventHandlerRef)
+            self.eventHandlerRef = nil
         }
     }
 
     func updateShortcut(_ shortcut: ShortcutDefinition) {
+        let wasRunning = hotKeyRef != nil || eventHandlerRef != nil
+        if wasRunning {
+            stop()
+        }
         self.shortcut = shortcut
+        if wasRunning {
+            start()
+        }
     }
 
     func triggerForTesting() {
         openPopup()
     }
 
-    @discardableResult
-    private func handle(_ event: NSEvent) -> Bool {
-        guard matchesShortcut(event) else { return false }
-        openPopup()
-        return true
+    private func installEventHandlerIfNeeded() {
+        guard eventHandlerRef == nil else { return }
+
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
+        let userData = Unmanaged.passUnretained(self).toOpaque()
+        let status = InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, event, userData in
+                guard let event, let userData else { return noErr }
+
+                var hotKeyID = EventHotKeyID()
+                let parameterStatus = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &hotKeyID
+                )
+                guard
+                    parameterStatus == noErr,
+                    hotKeyID.signature == ShortcutService.hotKeySignature
+                else {
+                    return noErr
+                }
+
+                let service = Unmanaged<ShortcutService>.fromOpaque(userData).takeUnretainedValue()
+                DispatchQueue.main.async {
+                    service.openPopup()
+                }
+                return noErr
+            },
+            1,
+            &eventType,
+            userData,
+            &eventHandlerRef
+        )
+
+        if status != noErr {
+            eventHandlerRef = nil
+        }
     }
 
-    private func matchesShortcut(_ event: NSEvent) -> Bool {
-        let relevantFlags = event.modifierFlags.intersection([.command, .option, .shift, .control])
-        return event.keyCode == shortcut.keyCode && relevantFlags == shortcut.modifierFlags
+    private func registerHotKey() {
+        let hotKeyID = EventHotKeyID(signature: Self.hotKeySignature, id: 1)
+        let status = RegisterEventHotKey(
+            UInt32(shortcut.keyCode),
+            shortcut.carbonModifiers,
+            hotKeyID,
+            GetApplicationEventTarget(),
+            0,
+            &hotKeyRef
+        )
+
+        if status != noErr {
+            hotKeyRef = nil
+        }
     }
 }
 
 private extension ShortcutDefinition {
-    var modifierFlags: NSEvent.ModifierFlags {
-        var flags: NSEvent.ModifierFlags = []
+    var carbonModifiers: UInt32 {
+        var flags: UInt32 = 0
         if requiresCommand {
-            flags.insert(.command)
+            flags |= UInt32(cmdKey)
         }
         if requiresOption {
-            flags.insert(.option)
+            flags |= UInt32(optionKey)
         }
         if requiresControl {
-            flags.insert(.control)
+            flags |= UInt32(controlKey)
         }
         if requiresShift {
-            flags.insert(.shift)
+            flags |= UInt32(shiftKey)
         }
         return flags
     }
