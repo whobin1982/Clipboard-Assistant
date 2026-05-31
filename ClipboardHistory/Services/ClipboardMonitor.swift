@@ -80,9 +80,13 @@ final class ClipboardMonitor {
     }
 
     func pollOnce() {
-        guard !isRecordingPaused() else { return }
-
         let currentChangeCount = pasteboard.changeCount
+
+        guard !isRecordingPaused() else {
+            markChangeHandled(currentChangeCount)
+            return
+        }
+
         guard currentChangeCount != lastProcessedChangeCount else { return }
 
         if pasteboard.wasWrittenByClipboardHistory() {

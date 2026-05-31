@@ -18,7 +18,7 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertTrue(store.insertedItems.isEmpty)
     }
 
-    func testPausedRecordingDoesNotInsertAndDoesNotAdvanceLastProcessedChangeCount() {
+    func testPausedRecordingDoesNotInsertAndSkipsPausedChangeWhenResumed() {
         let pasteboard = FakePasteboard(changeCount: 1, string: "deferred")
         let store = FakeClipboardStore()
         var isPaused = true
@@ -34,7 +34,29 @@ final class ClipboardMonitorTests: XCTestCase {
         isPaused = false
         monitor.pollOnce()
 
-        XCTAssertEqual(store.insertedItems.map(\.text), ["deferred"])
+        XCTAssertTrue(store.insertedItems.isEmpty)
+    }
+
+    func testResumedRecordingStillCapturesNewChangesAfterSkippedPausedChange() {
+        let pasteboard = FakePasteboard(changeCount: 1, string: "paused")
+        let store = FakeClipboardStore()
+        var isPaused = true
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: FakeImageStorage(),
+            isRecordingPaused: { isPaused }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+        isPaused = false
+        monitor.pollOnce()
+        pasteboard.string = "after resume"
+        pasteboard.changeCount = 3
+        monitor.pollOnce()
+
+        XCTAssertEqual(store.insertedItems.map(\.text), ["after resume"])
     }
 
     func testNewNonEmptyTextInsertsTextClipboardItem() {
