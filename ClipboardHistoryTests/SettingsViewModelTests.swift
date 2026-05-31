@@ -528,6 +528,103 @@ final class SearchWindowPresenterTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(panel?.minSize.height ?? 0, 360)
     }
 
+    func testSearchWindowDisablesZoomAndFullscreen() throws {
+        let presenter = SearchWindowPresenter()
+        let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
+
+        presenter.show(
+            viewModel: viewModel,
+            previousApplication: nil,
+            escapeClosesWindow: true,
+            isRecordingPaused: .constant(false),
+            historyWindowStaysOpen: .constant(false),
+            historyWindowAlwaysOnTop: .constant(false),
+            onClose: {},
+            onWindowBehaviorChanged: { _ in },
+            onOpenSettings: {},
+            onClearNonFavorites: {},
+            onClearAll: {},
+            onPaste: { _ in },
+            onCopy: { _ in },
+            onDelete: { _ in }
+        )
+        defer { presenter.orderOut() }
+
+        let panel = try XCTUnwrap(
+            NSApp.windows
+                .compactMap { $0 as? NSPanel }
+                .first { $0.title == "剪贴板历史" && $0.isVisible }
+        )
+
+        XCTAssertEqual(panel.standardWindowButton(.zoomButton)?.isEnabled, false)
+        XCTAssertFalse(panel.collectionBehavior.contains(.fullScreenAuxiliary))
+        XCTAssertFalse(panel.collectionBehavior.contains(.fullScreenPrimary))
+    }
+
+    func testWindowModeTitlebarButtonUpdatesBindingsAndPanelLevel() throws {
+        let presenter = SearchWindowPresenter()
+        let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
+        var staysOpen = false
+        var alwaysOnTop = false
+        var levelChanges: [Bool] = []
+
+        presenter.show(
+            viewModel: viewModel,
+            previousApplication: nil,
+            escapeClosesWindow: true,
+            isRecordingPaused: .constant(false),
+            historyWindowStaysOpen: Binding(
+                get: { staysOpen },
+                set: { staysOpen = $0 }
+            ),
+            historyWindowAlwaysOnTop: Binding(
+                get: { alwaysOnTop },
+                set: { alwaysOnTop = $0 }
+            ),
+            onClose: {},
+            onWindowBehaviorChanged: { levelChanges.append($0) },
+            onOpenSettings: {},
+            onClearNonFavorites: {},
+            onClearAll: {},
+            onPaste: { _ in },
+            onCopy: { _ in },
+            onDelete: { _ in }
+        )
+        defer { presenter.orderOut() }
+
+        let panel = try XCTUnwrap(
+            NSApp.windows
+                .compactMap { $0 as? NSPanel }
+                .first { $0.title == "剪贴板历史" && $0.isVisible }
+        )
+        let modeButton = try XCTUnwrap(
+            panel.titlebarAccessoryViewControllers
+                .compactMap { $0.view as? NSPopUpButton }
+                .first
+        )
+
+        XCTAssertEqual(modeButton.numberOfItems, 3)
+        XCTAssertNotNil(modeButton.item(withTitle: "普通"))
+        XCTAssertNotNil(modeButton.item(withTitle: "常驻"))
+        XCTAssertNotNil(modeButton.item(withTitle: "置顶"))
+
+        modeButton.selectItem(withTitle: "置顶")
+        _ = modeButton.target?.perform(modeButton.action, with: modeButton)
+
+        XCTAssertFalse(staysOpen)
+        XCTAssertTrue(alwaysOnTop)
+        XCTAssertEqual(panel.level, .floating)
+        XCTAssertEqual(levelChanges, [true])
+
+        modeButton.selectItem(withTitle: "常驻")
+        _ = modeButton.target?.perform(modeButton.action, with: modeButton)
+
+        XCTAssertTrue(staysOpen)
+        XCTAssertFalse(alwaysOnTop)
+        XCTAssertEqual(panel.level, .normal)
+        XCTAssertEqual(levelChanges, [true, false])
+    }
+
     func testAlwaysOnTopControlsPanelLevel() throws {
         let presenter = SearchWindowPresenter()
         let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))

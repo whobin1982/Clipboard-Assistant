@@ -95,6 +95,26 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertTrue(store.insertedItems.isEmpty)
     }
 
+    func testClipboardHistoryMarkedImageChangeDoesNotSaveImageAndIsNotRetried() {
+        let pasteboard = FakePasteboard(changeCount: 1, image: makeImage(), isMarkedByClipboardHistory: true)
+        let store = FakeClipboardStore()
+        let imageStorage = FakeImageStorage()
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: imageStorage,
+            isRecordingPaused: { false }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+        pasteboard.isMarkedByClipboardHistory = false
+        monitor.pollOnce()
+
+        XCTAssertTrue(imageStorage.savedImages.isEmpty)
+        XCTAssertTrue(store.insertedItems.isEmpty)
+    }
+
     func testWhitespaceOnlyTextDoesNotInsert() {
         let pasteboard = FakePasteboard(changeCount: 1, string: " \n\t ")
         let store = FakeClipboardStore()

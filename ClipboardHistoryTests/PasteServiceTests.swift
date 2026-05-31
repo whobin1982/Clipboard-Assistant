@@ -55,6 +55,43 @@ final class PasteServiceTests: XCTestCase {
         )
     }
 
+    func testSystemPasteboardWriterPublishesPngImageData() throws {
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        let writer = SystemPasteboardWriter(pasteboard: pasteboard)
+
+        try writer.writeImage(makeTestImage())
+
+        XCTAssertNotNil(pasteboard.data(forType: .png))
+        XCTAssertEqual(
+            pasteboard.string(forType: ClipboardPasteboardMarker.type),
+            ClipboardPasteboardMarker.value
+        )
+    }
+
+    func testSystemPasteboardReaderReadsPngImageData() throws {
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        let imageData = try XCTUnwrap(makeTestImage().pngData)
+        pasteboard.declareTypes([.png], owner: nil)
+        pasteboard.setData(imageData, forType: .png)
+        let reader = SystemPasteboardReader(pasteboard: pasteboard)
+
+        XCTAssertNotNil(reader.readImage())
+    }
+
+    func testSystemPasteboardReaderReadsImageFileURL() throws {
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("png")
+        try XCTUnwrap(makeTestImage().pngData).write(to: imageURL)
+        defer { try? FileManager.default.removeItem(at: imageURL) }
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        pasteboard.clearContents()
+        pasteboard.writeObjects([imageURL as NSURL])
+        let reader = SystemPasteboardReader(pasteboard: pasteboard)
+
+        XCTAssertNotNil(reader.readImage())
+    }
+
     func testCopyAndPasteCopiesThenSendsPasteCommand() throws {
         let recorder = CallRecorder()
         let pasteboard = FakePasteboardWriter(recorder: recorder)

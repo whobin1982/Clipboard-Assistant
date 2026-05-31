@@ -115,12 +115,27 @@ final class SystemPasteboardWriter: PasteboardWriting {
 
     func writeImage(_ image: NSImage) throws {
         pasteboard.clearContents()
+        pasteboard.declareTypes([.png, .tiff, ClipboardPasteboardMarker.type], owner: nil)
+        let imageData = try Self.imagePasteboardData(from: image)
         guard
-            pasteboard.writeObjects([image]),
+            pasteboard.setData(imageData.png, forType: .png),
+            pasteboard.setData(imageData.tiff, forType: .tiff),
             pasteboard.setString(ClipboardPasteboardMarker.value, forType: ClipboardPasteboardMarker.type)
         else {
             throw PasteServiceError.pasteboardWriteFailed
         }
+    }
+
+    private static func imagePasteboardData(from image: NSImage) throws -> (png: Data, tiff: Data) {
+        guard
+            let tiff = image.tiffRepresentation,
+            let bitmap = NSBitmapImageRep(data: tiff),
+            let png = bitmap.representation(using: .png, properties: [:])
+        else {
+            throw PasteServiceError.pasteboardWriteFailed
+        }
+
+        return (png, tiff)
     }
 }
 

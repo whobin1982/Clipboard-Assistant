@@ -30,7 +30,30 @@ final class SystemPasteboardReader: PasteboardReading {
     }
 
     func readImage() -> NSImage? {
-        pasteboard.readObjects(forClasses: [NSImage.self], options: nil)?.first as? NSImage
+        if let image = pasteboard.readObjects(forClasses: [NSImage.self], options: nil)?.first as? NSImage {
+            return image
+        }
+
+        if let pngData = pasteboard.data(forType: .png),
+           let image = NSImage(data: pngData) {
+            return image
+        }
+
+        if let tiffData = pasteboard.data(forType: .tiff),
+           let image = NSImage(data: tiffData) {
+            return image
+        }
+
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [
+            .urlReadingFileURLsOnly: true,
+            .urlReadingContentsConformToTypes: NSImage.imageTypes
+        ]
+        guard
+            let imageURL = pasteboard.readObjects(forClasses: [NSURL.self], options: options)?.first as? URL
+        else {
+            return nil
+        }
+        return NSImage(contentsOf: imageURL)
     }
 
     func wasWrittenByClipboardHistory() -> Bool {
