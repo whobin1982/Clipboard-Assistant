@@ -1,87 +1,239 @@
-# Clipboard History for Mac
+# 剪贴板助手
 
-这是一个 macOS 剪贴板历史工具的第一版工程。它用于记录文字和图片剪贴板历史，并通过快捷键或菜单栏找回和粘贴之前复制过的内容。
+剪贴板助手是一个运行在 Mac 菜单栏里的历史剪贴板工具。它会在本机记录你复制过的文字和图片，让你不用反复回到原来的网页、文档或 Finder 里重新找内容、重新复制。
 
-## 当前状态
+这个项目从一个很朴素的需求开始：解决“每次都要重新去找之前复制内容”的麻烦。后续围绕真实使用场景逐步补齐了菜单栏交互、快捷键呼出、自动粘贴、图片记录、窗口记忆、设置页、帮助文档、关于面板、软件图标和安装包发布等能力。
 
-已实现第一版主要功能：
+## 功能特点
 
-- 文字和图片剪贴板历史
-- 本机 SQLite 保存
-- 图片缩略图保存和清理
-- 搜索弹窗
-- 菜单栏入口
-- 收藏、删除、清空历史
-- 默认 30 天保留，可设置
-- 运行中定期清理过期记录
-- 可配置快捷键
-- 自动粘贴回原来的前台应用
-- 设置页和验收记录
+- 菜单栏常驻：软件运行后显示在 macOS 顶部菜单栏，不占 Dock。
+- 左键打开历史：点击菜单栏图标直接呼出剪贴板历史窗口。
+- 右键打开菜单：右键菜单提供最近记录、收藏记录、设置、帮助、关于和退出。
+- 全局快捷键：默认使用 `⌥ + ⌘ + V` 呼出历史窗口，也支持在设置里修改。
+- 文字历史：自动记录非空文本内容，支持搜索、复制、粘贴、收藏和删除。
+- 图片历史：支持常见图片内容和 Finder 中复制的图片文件，保留图片数据并显示缩略图。
+- 自动粘贴：选择某条记录后，可自动放回系统剪贴板并粘贴到之前的输入位置。
+- 只复制模式：可以在设置里改为只放回系统剪贴板，不自动执行粘贴。
+- 键盘选择：历史窗口中可用上下方向键选择记录，用大键盘回车或小键盘回车确认。
+- 自动记录开关：可随时暂停或恢复剪贴板记录，暂停期间复制的内容不会在恢复后补记。
+- 窗口记忆：历史窗口会记住上次的位置和尺寸。
+- 窗口模式：支持普通、常驻、置顶三种窗口状态，置顶时默认常驻。
+- 清理历史：支持清空全部历史，或只清空非收藏历史。
+- 保留时间：支持 7 天、30 天、90 天、永久，以及自定义保留天数。
+- 开机启动：可在设置中控制是否登录后自动运行。
+- 中文界面：菜单、历史窗口、设置页、帮助页、关于面板均为中文。
 
-## 运行前准备
+## 图片记录设计
 
-这是真正的 macOS 原生 App 工程，需要完整 Xcode。
+图片剪贴板比文本复杂得多。Finder、截图工具、浏览器和图片软件写入剪贴板的格式并不完全相同，有时还会同时带有文件引用、缩略图或系统文件图标。
 
-1. 在 Mac App Store 安装 Xcode。
-2. 打开一次 Xcode，按提示完成初始组件安装。
-3. 在终端运行：
+本项目目前采用的策略是：
 
-```bash
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-```
+- 只记录明确可识别的图片格式。
+- Finder 复制图片文件时，读取图片文件本身，而不是系统显示的文件图标。
+- PDF、普通文档、文件夹等非图片文件不会进入历史。
+- 图片记录会保存为应用自己的图片归档，并额外生成缩略图用于列表展示。
+- 粘贴图片时，从本地保存的图片归档恢复到系统剪贴板，尽量保留原始图片类型。
+- 从剪贴板助手自身写回剪贴板的内容会带内部标记，监听器看到后不会重复新增历史。
 
-4. 验证：
+## 使用方式
 
-```bash
-xcodebuild -version
-```
+启动后，软件会出现在 Mac 顶部菜单栏。
 
-如果能看到 Xcode 版本号，就说明环境准备好了。
+- 左键点击菜单栏图标：打开剪贴板历史窗口。
+- 右键点击菜单栏图标：打开应用菜单。
+- 使用快捷键 `⌥ + ⌘ + V`：打开剪贴板历史窗口。
+- 点击某条历史：按设置执行粘贴或只复制。
+- 上下方向键：在历史窗口中移动选择。
+- 回车：确认当前选中记录。
+- Esc：关闭历史窗口。
 
-## 打开和运行
+自动粘贴依赖 macOS 辅助功能权限。如果只想把内容放回系统剪贴板，可以在设置里选择“只复制到剪贴板”。
 
-在 Finder 里打开这个文件：
+## 权限说明
+
+剪贴板助手尽量只使用必要权限。
+
+- 剪贴板访问：用于读取当前系统剪贴板，并把历史记录写回系统剪贴板。
+- 辅助功能权限：仅在需要自动发送 `⌘ + V` 粘贴动作时使用。
+- 开机启动：仅在你打开“开机自动启动”后注册。
+
+历史数据默认保存在本机，不会上传到云端。
+
+## 数据存储
+
+应用数据保存在 macOS 用户目录下的 Application Support 中：
 
 ```text
-ClipboardHistory.xcodeproj
+~/Library/Application Support/ClipboardHistory/
 ```
 
-或者在终端运行：
+主要包括：
+
+- `clipboard-history.sqlite`：文字记录、图片记录索引、收藏状态、时间信息。
+- `Images/`：图片归档和缩略图。
+
+图片文件会随着删除记录、清空历史、过期清理一起被清理。清理逻辑会额外删除没有被数据库引用的孤儿图片文件。
+
+## 设置项
+
+设置页面目前包含：
+
+- 点击或回车后的动作：自动粘贴 / 只复制到剪贴板。
+- 选择后是否关闭历史窗口。
+- Esc 是否关闭历史窗口。
+- 预设快捷键。
+- 自定义快捷键录制。
+- 开机自动启动。
+- 历史保留时间。
+- 自定义保留天数。
+- 已用图片存储空间。
+- 清空非收藏历史。
+- 清空全部历史。
+
+设置变更会即时生效。快捷键修改后会重新注册全局快捷键；保留时间修改后会立即执行一次过期清理。
+
+## 项目结构
+
+```text
+ClipboardHistory/
+  App/              应用入口、菜单栏控制、窗口展示、帮助和关于面板
+  Models/           剪贴板记录、设置、快捷键等数据模型
+  Persistence/      SQLite 存储、数据库迁移、存储协议
+  Services/         剪贴板监听、图片存储、粘贴服务、快捷键、开机启动、过期清理
+  ViewModels/       历史列表、设置页、键盘选择状态
+  Views/            SwiftUI 历史窗口、设置页、记录行、快捷键录制控件
+  Resources/        App 图标、内置帮助文档
+
+ClipboardHistoryTests/
+  单元测试和窗口行为测试
+
+Packaging/
+  安装包背景图、卷图标、应用图标预览
+
+scripts/
+  create_release_dmg.sh  生成发布用 DMG 安装包
+```
+
+## 技术栈
+
+- Swift
+- SwiftUI
+- AppKit
+- SQLite3
+- Carbon Hot Key API
+- NSPasteboard
+- CGEvent
+- ServiceManagement
+- XCTest
+
+项目是原生 macOS 应用，不依赖 Electron。
+
+## 构建运行
+
+需要完整安装 Xcode。
 
 ```bash
 open ClipboardHistory.xcodeproj
 ```
 
-在 Xcode 里：
+在 Xcode 中选择：
 
-1. 选择顶部的 `ClipboardHistory` scheme。
-2. 运行目标选择 `My Mac`。
-3. 点击运行按钮。
+- Scheme：`ClipboardHistory`
+- Destination：`My Mac`
 
-运行后，应用会出现在 Mac 顶部菜单栏。
+然后点击运行。
 
-## 验证命令
-
-安装并选择完整 Xcode 后，在项目目录运行：
+也可以在终端中构建：
 
 ```bash
-xcodebuild test -scheme ClipboardHistory -destination 'platform=macOS'
-xcodebuild -scheme ClipboardHistory -destination 'platform=macOS' build
+xcodebuild -project ClipboardHistory.xcodeproj \
+  -scheme ClipboardHistory \
+  -destination 'platform=macOS' \
+  build
 ```
 
-当前环境还没有完整 Xcode，所以这两条命令暂时会被系统阻塞。轻量静态检查已经通过：
+## 测试
+
+运行完整测试：
 
 ```bash
-swiftc -typecheck $(rg --files ClipboardHistory -g '*.swift')
-plutil -lint ClipboardHistory.xcodeproj/project.pbxproj
-git diff --check
+xcodebuild test -project ClipboardHistory.xcodeproj \
+  -scheme ClipboardHistory \
+  -destination 'platform=macOS'
 ```
 
-## 手动验收清单
+当前测试覆盖了：
 
-完整 Xcode 构建成功后，请按这份文档进行手动检查：
+- 设置默认值和持久化。
+- 文本历史搜索、收藏、删除。
+- SQLite 存储读写。
+- 剪贴板监听暂停、恢复、重复记录过滤。
+- 图片复制、图片文件复制、PDF 和非图片文件过滤。
+- 图片归档保存、缩略图和孤儿文件清理。
+- 自动粘贴流程和失败处理。
+- 全局快捷键更新。
+- 历史窗口尺寸记忆、置顶、常驻、标题栏按钮。
+- 设置窗口尺寸。
 
-```text
-docs/verification/2026-05-31-manual-acceptance.md
+## 发布安装包
+
+先构建 Release 版本：
+
+```bash
+xcodebuild -project ClipboardHistory.xcodeproj \
+  -scheme ClipboardHistory \
+  -configuration Release \
+  -destination 'platform=macOS' \
+  -derivedDataPath /tmp/ClipboardHistoryBuild \
+  build
 ```
 
+再生成 DMG：
+
+```bash
+scripts/create_release_dmg.sh \
+  '/tmp/ClipboardHistoryBuild/Build/Products/Release/剪贴板助手.app' \
+  'dist/剪贴板助手.dmg'
+```
+
+生成后可校验：
+
+```bash
+hdiutil verify 'dist/剪贴板助手.dmg'
+```
+
+## 开发过程摘要
+
+项目大致经历了这些阶段：
+
+1. 需求整理：先确认这是一个运行在 Mac 上的历史剪贴板工具，核心目标是快速找回之前复制的内容。
+2. 第一版原型：实现菜单栏入口、文本记录、本机 SQLite 存储、历史窗口和基础粘贴。
+3. 交互修正：调整左键打开历史、右键打开菜单，修复首次点击、自动粘贴和辅助功能权限提示逻辑。
+4. 设置能力：加入设置页，支持自动粘贴/只复制、快捷键、保留时间、开机启动等配置。
+5. 历史窗口增强：支持键盘上下选择、回车确认、点击外部关闭、窗口位置和尺寸记忆。
+6. 清理与收藏：加入收藏、删除单条、清空非收藏、清空全部、过期清理和图片文件清理。
+7. 图片能力：围绕 Finder 图片文件、普通图片数据、非图片文件过滤和图片粘贴恢复反复调整。
+8. 窗口模式：加入普通、常驻、置顶三种状态，并用标题栏图标按钮控制。
+9. 产品化整理：加入应用图标、菜单栏图标、帮助文档、关于面板、DMG 安装包和中文界面。
+10. 工程维护：补充测试、清理重复 app、整理 `.gitignore`，并为代码添加中文注释。
+
+这些演进都围绕一个原则：让软件像一个日常可用的 Mac 小工具，而不是只完成技术演示。
+
+## 当前版本
+
+当前版本：`0.2.0`
+
+这个版本已经具备日常使用所需的核心能力。后续可以继续考虑：
+
+- 应用黑名单，避免记录密码管理器或敏感应用内容。
+- 更强的搜索，例如按类型、时间、收藏筛选。
+- 自动更新。
+- 更完整的偏好设置导入导出。
+- 发布签名和 notarization。
+
+## 作者
+
+作者：胡斌
+
+项目仓库：[whobin1982/Clipboard-Assistant](https://github.com/whobin1982/Clipboard-Assistant)
