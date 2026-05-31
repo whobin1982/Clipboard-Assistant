@@ -7,6 +7,11 @@ struct ClipboardPopupView: View {
     @ObservedObject var recordingPauseState: RecordingPauseState
     @StateObject private var selectionController = ClipboardSelectionController()
     @State private var clearConfirmation: ClipboardClearConfirmation?
+    @State private var visibleRowFrames: [ClipboardVisibleRowFrame] = []
+    @State private var listViewportHeight: CGFloat = 0
+    @State private var visibleShortcutItemIDs: [UUID] = []
+
+    private static let historyListCoordinateSpace = "clipboardHistoryList"
 
     var escapeClosesWindow: Bool
     @Binding var isRecordingPaused: Bool
@@ -41,7 +46,11 @@ struct ClipboardPopupView: View {
                 },
                 searchQuery: viewModel.query,
                 onNumberShortcut: { number in
-                    guard let item = selectionController.selectNumberShortcut(number, in: visibleItems) else { return }
+                    let shortcutItems = ClipboardVisibleShortcutResolver.shortcutItems(
+                        visibleIDs: visibleShortcutItemIDs,
+                        items: visibleItems
+                    )
+                    guard let item = selectionController.selectNumberShortcut(number, in: shortcutItems) else { return }
                     onPaste(item)
                 }
             )
@@ -116,16 +125,31 @@ struct ClipboardPopupView: View {
                 List(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
                     ClipboardRowView(
                         item: item,
-                        shortcutNumber: index < 9 ? index + 1 : nil,
+                        shortcutNumber: shortcutNumber(for: item.id, fallbackIndex: index),
                         isSelected: selectionController.selectedItemID == item.id,
                         onFavorite: { viewModel.toggleFavorite(item) },
                         onDelete: { onDelete(item) },
                         onPaste: { onPaste(item) },
                         onCopy: { onCopy(item) }
                     )
+                    .background(
+                        ClipboardVisibleRowReporter(
+                            itemID: item.id,
+                            coordinateSpaceName: Self.historyListCoordinateSpace
+                        )
+                    )
                 }
                 .listStyle(.plain)
                 .frame(minHeight: 180)
+                .coordinateSpace(name: Self.historyListCoordinateSpace)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: ClipboardListViewportHeightPreferenceKey.self,
+                            value: proxy.size.height
+                        )
+                    }
+                )
             }
         }
         .padding(12)
@@ -153,6 +177,15 @@ struct ClipboardPopupView: View {
         }
         .onChange(of: viewModel.filteredItems.map(\.id)) { _, _ in
             selectionController.reconcileSelection(with: viewModel.filteredItems)
+            refreshVisibleShortcutItems(for: viewModel.filteredItems)
+        }
+        .onPreferenceChange(ClipboardVisibleRowFramesPreferenceKey.self) { frames in
+            visibleRowFrames = frames
+            refreshVisibleShortcutItems(for: visibleItems)
+        }
+        .onPreferenceChange(ClipboardListViewportHeightPreferenceKey.self) { height in
+            listViewportHeight = height
+            refreshVisibleShortcutItems(for: visibleItems)
         }
     }
 
@@ -162,6 +195,66 @@ struct ClipboardPopupView: View {
             get: { !recordingPauseState.isPaused },
             set: { isRecordingPaused = !$0 }
         )
+    }
+
+    /// 根据当前滚动位置为可见记录分配快捷键编号。
+    private func shortcutNumber(for itemID: UUID, fallbackIndex: Int) -> Int? {
+        if let visibleIndex = visibleShortcutItemIDs.firstIndex(of: itemID) {
+            return visibleIndex + 1
+        }
+
+        guard visibleShortcutItemIDs.isEmpty, fallbackIndex < 9 else { return nil }
+        return fallbackIndex + 1
+    }
+
+    /// 滚动、窗口大小或列表内容变化时刷新可用的快捷选择记录。
+    private func refreshVisibleShortcutItems(for items: [ClipboardItem]) {
+        visibleShortcutItemIDs = ClipboardVisibleShortcutResolver.visibleIDs(
+            rowFrames: visibleRowFrames,
+            viewportHeight: listViewportHeight,
+            itemIDs: items.map(\.id)
+        )
+    }
+}
+
+/// 汇总每一行相对历史列表可见区域的位置。
+private struct ClipboardVisibleRowFramesPreferenceKey: PreferenceKey {
+    static var defaultValue: [ClipboardVisibleRowFrame] = []
+
+    static func reduce(value: inout [ClipboardVisibleRowFrame], nextValue: () -> [ClipboardVisibleRowFrame]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+/// 记录历史列表视口高度，用来判断哪些行当前可见。
+private struct ClipboardListViewportHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+/// 给单行记录上报当前位置，不参与实际绘制。
+private struct ClipboardVisibleRowReporter: View {
+    let itemID: UUID
+    let coordinateSpaceName: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            let frame = proxy.frame(in: .named(coordinateSpaceName))
+
+            Color.clear.preference(
+                key: ClipboardVisibleRowFramesPreferenceKey.self,
+                value: [
+                    ClipboardVisibleRowFrame(
+                        id: itemID,
+                        minY: frame.minY,
+                        maxY: frame.maxY
+                    )
+                ]
+            )
+        }
     }
 }
 

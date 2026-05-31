@@ -50,7 +50,7 @@ final class ClipboardSelectionController: ObservableObject {
         return items.first { $0.id == selectedItemID }
     }
 
-    /// 根据 1-9 数字键选择当前可见列表中的对应记录，并返回这条记录给调用方执行粘贴。
+    /// 根据 1-9 快捷键编号选择当前可见列表中的对应记录，并返回这条记录给调用方执行粘贴。
     @discardableResult
     func selectNumberShortcut(_ number: Int, in items: [ClipboardItem]) -> ClipboardItem? {
         guard (1...9).contains(number) else { return nil }
@@ -73,21 +73,17 @@ final class ClipboardSelectionController: ObservableObject {
 
 /// 历史窗口键盘快捷键解析器。
 enum ClipboardKeyboardShortcut {
-    /// 将主键盘和数字小键盘的 1-9 解析成快速选择编号。
+    /// 将 Command + 主键盘或数字小键盘的 1-9 解析成快速选择编号。
     ///
-    /// 搜索框为空时，即使当前焦点在搜索框里，也优先让数字键用于快速选择；
-    /// 搜索框已有内容时，数字键继续交给搜索框，方便搜索包含数字的内容。
+    /// 普通数字、字母和符号都保留给搜索输入，只有带 Command 的数字组合会触发快速选择。
     static func numberShortcut(
         keyCode: UInt16,
         modifierFlags: NSEvent.ModifierFlags,
-        searchQuery: String,
-        isTextEditing: Bool
+        searchQuery _: String,
+        isTextEditing _: Bool
     ) -> Int? {
         let meaningfulModifiers = modifierFlags.intersection([.command, .control, .option, .shift])
-        guard meaningfulModifiers.isEmpty else { return nil }
-
-        let trimmedQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !isTextEditing || trimmedQuery.isEmpty else { return nil }
+        guard meaningfulModifiers == .command else { return nil }
 
         switch keyCode {
         case 18, 83:
@@ -111,5 +107,48 @@ enum ClipboardKeyboardShortcut {
         default:
             return nil
         }
+    }
+}
+
+/// 历史列表中某一行在可见滚动区域内的位置。
+struct ClipboardVisibleRowFrame: Equatable {
+    let id: UUID
+    let minY: CGFloat
+    let maxY: CGFloat
+}
+
+/// 计算滚动后当前可见记录对应的快捷键编号。
+enum ClipboardVisibleShortcutResolver {
+    /// 取出当前可见区域内从上到下排列的前 9 条记录 id。
+    static func visibleIDs(
+        rowFrames: [ClipboardVisibleRowFrame],
+        viewportHeight: CGFloat,
+        itemIDs: [UUID],
+        limit: Int = 9
+    ) -> [UUID] {
+        guard viewportHeight > 0 else { return [] }
+
+        let itemOrder = Dictionary(uniqueKeysWithValues: itemIDs.enumerated().map { ($0.element, $0.offset) })
+
+        return rowFrames
+            .filter { frame in
+                itemOrder[frame.id] != nil && frame.maxY > 0 && frame.minY < viewportHeight
+            }
+            .sorted { left, right in
+                if abs(left.minY - right.minY) < 0.5 {
+                    return (itemOrder[left.id] ?? 0) < (itemOrder[right.id] ?? 0)
+                }
+                return left.minY < right.minY
+            }
+            .prefix(limit)
+            .map(\.id)
+    }
+
+    /// 把可见 id 转成快捷选择候选记录；尚未拿到滚动位置信息时退回列表前 9 条。
+    static func shortcutItems(visibleIDs: [UUID], items: [ClipboardItem], limit: Int = 9) -> [ClipboardItem] {
+        guard !visibleIDs.isEmpty else { return Array(items.prefix(limit)) }
+
+        let itemByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+        return visibleIDs.prefix(limit).compactMap { itemByID[$0] }
     }
 }

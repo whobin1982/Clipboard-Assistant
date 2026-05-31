@@ -62,20 +62,20 @@ struct ClipboardRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 前 9 条可见记录显示数字快捷键提示。
+    /// 前 9 条可见记录显示 Command + 数字快捷键提示。
     private var shortcutBadge: some View {
         Group {
             if let shortcutNumber {
-                Text("\(shortcutNumber)")
+                Text("⌘\(shortcutNumber)")
                     .font(.caption2)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
-                    .frame(width: 20, height: 20)
+                    .frame(width: 28, height: 20)
                     .background(Color(nsColor: .quaternaryLabelColor).opacity(0.16))
                     .clipShape(RoundedRectangle(cornerRadius: 4))
             } else {
                 Color.clear
-                    .frame(width: 20, height: 20)
+                    .frame(width: 28, height: 20)
             }
         }
         .padding(.top, 11)
