@@ -21,7 +21,7 @@ final class SettingsWindowPresenter: NSObject, SettingsWindowPresenting, NSWindo
             .environmentObject(environment)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 540, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 620, height: 560),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -32,7 +32,7 @@ final class SettingsWindowPresenter: NSObject, SettingsWindowPresenting, NSWindo
         window.delegate = self
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("ClipboardHistorySettingsWindow")
-        window.minSize = NSSize(width: 460, height: 420)
+        window.minSize = NSSize(width: 560, height: 480)
 
         self.window = window
         NSApplication.shared.activate(ignoringOtherApps: true)

@@ -13,89 +13,107 @@ private struct SettingsFormView: View {
     @State private var clearConfirmation: ClearConfirmation?
 
     var body: some View {
-        Form {
-            Section("粘贴行为") {
-                Picker("点击或回车后", selection: selectionAction) {
-                    ForEach(ClipboardSelectionAction.allCases) { action in
-                        Text(action.title).tag(action)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                SettingsSection("粘贴行为") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SettingsRow("点击或回车后") {
+                            Picker("点击或回车后", selection: selectionAction) {
+                                ForEach(ClipboardSelectionAction.allCases) { action in
+                                    Text(action.title).tag(action)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .frame(width: 280)
+                        }
+
+                        Toggle("选择后关闭历史窗口", isOn: closeWindowAfterSelection)
+                        Toggle("按 Esc 关闭历史窗口", isOn: escapeClosesWindow)
                     }
                 }
-                .pickerStyle(.segmented)
 
-                Toggle("选择后关闭历史窗口", isOn: closeWindowAfterSelection)
-                Toggle("按 Esc 关闭历史窗口", isOn: escapeClosesWindow)
+                SettingsSection("快捷键") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SettingsRow("预设快捷键") {
+                            Picker("预设快捷键", selection: shortcutID) {
+                                ForEach(viewModel.availableShortcuts) { shortcut in
+                                    Text(shortcut.displayName).tag(shortcut.id)
+                                }
+                                if viewModel.selectedShortcutID == ShortcutDefinition.customID,
+                                   let recordedShortcut = viewModel.recordedShortcut {
+                                    Text(recordedShortcut.displayName).tag(recordedShortcut.id)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 160)
+                        }
+
+                        SettingsRow("自定义快捷键") {
+                            ShortcutRecorderView(shortcut: viewModel.settings.shortcut) { shortcut in
+                                viewModel.applyCustomShortcut(shortcut)
+                            }
+                        }
+                    }
+                }
+
+                SettingsSection("启动与历史") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle("开机自动启动", isOn: launchAtLogin)
+
+                        SettingsRow("保留时间") {
+                            Picker("保留时间", selection: retentionPolicy) {
+                                Text("7 天").tag(RetentionPolicy.days(7))
+                                Text("30 天").tag(RetentionPolicy.days(30))
+                                Text("90 天").tag(RetentionPolicy.days(90))
+                                Text("永久").tag(RetentionPolicy.forever)
+                                if shouldShowCustomRetentionOption {
+                                    Text("\(viewModel.retentionDays) 天").tag(viewModel.retentionPolicy)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 128)
+                        }
+
+                        SettingsRow("自定义天数") {
+                            HStack(spacing: 8) {
+                                TextField("天数", text: $viewModel.customRetentionDaysText)
+                                    .frame(width: 72)
+                                Button("应用") {
+                                    viewModel.applyCustomRetentionDays()
+                                }
+                            }
+                        }
+
+                        SettingsRow("已用空间") {
+                            Text(viewModel.storageUsageDescription)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let message = viewModel.lastErrorMessage {
+                            Text(message)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+
+                SettingsSection("清理") {
+                    Menu("清空历史") {
+                        Button("清空非收藏记录") {
+                            clearConfirmation = .nonFavorites
+                        }
+
+                        Button("清空全部记录", role: .destructive) {
+                            clearConfirmation = .all
+                        }
+                    }
+                }
             }
-
-            Section("快捷键") {
-                Picker("预设快捷键", selection: shortcutID) {
-                    ForEach(viewModel.availableShortcuts) { shortcut in
-                        Text(shortcut.displayName).tag(shortcut.id)
-                    }
-                    if viewModel.selectedShortcutID == ShortcutDefinition.customID,
-                       let recordedShortcut = viewModel.recordedShortcut {
-                        Text(recordedShortcut.displayName).tag(recordedShortcut.id)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                HStack(alignment: .top) {
-                    Text("自定义快捷键")
-                    Spacer()
-                    ShortcutRecorderView(shortcut: viewModel.settings.shortcut) { shortcut in
-                        viewModel.applyCustomShortcut(shortcut)
-                    }
-                }
-            }
-
-            Section("启动与历史") {
-                Toggle("开机自动启动", isOn: launchAtLogin)
-
-                Picker("保留时间", selection: retentionPolicy) {
-                    Text("7 天").tag(RetentionPolicy.days(7))
-                    Text("30 天").tag(RetentionPolicy.days(30))
-                    Text("90 天").tag(RetentionPolicy.days(90))
-                    Text("永久").tag(RetentionPolicy.forever)
-                    if shouldShowCustomRetentionOption {
-                        Text("\(viewModel.retentionDays) 天").tag(viewModel.retentionPolicy)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                HStack {
-                    Text("自定义天数")
-                    Spacer()
-                    TextField("天数", text: $viewModel.customRetentionDaysText)
-                        .frame(width: 78)
-                    Button("应用") {
-                        viewModel.applyCustomRetentionDays()
-                    }
-                }
-
-                HStack {
-                    Text("已用空间")
-                    Spacer()
-                    Text(viewModel.storageUsageDescription)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let message = viewModel.lastErrorMessage {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-            }
-
-            Section("清理") {
-                Menu("清空历史") {
-                    Button("清空非收藏记录") {
-                        clearConfirmation = .nonFavorites
-                    }
-
-                    Button("清空全部记录", role: .destructive) {
-                        clearConfirmation = .all
-                    }
-                }
-            }
+            .frame(maxWidth: 560, alignment: .leading)
+            .padding(24)
         }
         .alert(item: $clearConfirmation) { confirmation in
             Alert(
@@ -112,8 +130,7 @@ private struct SettingsFormView: View {
                 secondaryButton: .cancel()
             )
         }
-        .padding()
-        .frame(width: 540, height: 500)
+        .frame(minWidth: 560, minHeight: 520)
     }
 
     private var launchAtLogin: Binding<Bool> {
@@ -163,6 +180,49 @@ private struct SettingsFormView: View {
             return false
         }
         return ![7, 30, 90].contains(days)
+    }
+}
+
+private struct SettingsSection<Content: View>: View {
+    private let title: String
+    @ViewBuilder private let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.headline)
+
+            content
+                .padding(.leading, 1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct SettingsRow<Content: View>: View {
+    private let title: String
+    @ViewBuilder private let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
+            Text(title)
+                .foregroundStyle(.secondary)
+                .frame(width: 104, alignment: .leading)
+
+            content
+
+            Spacer(minLength: 0)
+        }
     }
 }
 
