@@ -7,7 +7,11 @@ protocol SearchWindowPresenting: AnyObject {
         viewModel: ClipboardHistoryViewModel,
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
+        isRecordingPaused: Binding<Bool>,
         onClose: @escaping () -> Void,
+        onOpenSettings: @escaping () -> Void,
+        onClearNonFavorites: @escaping () -> Void,
+        onClearAll: @escaping () -> Void,
         onPaste: @escaping (ClipboardItem) -> Void,
         onCopy: @escaping (ClipboardItem) -> Void,
         onDelete: @escaping (ClipboardItem) -> Void
@@ -29,7 +33,11 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         viewModel: ClipboardHistoryViewModel,
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
+        isRecordingPaused: Binding<Bool>,
         onClose: @escaping () -> Void,
+        onOpenSettings: @escaping () -> Void,
+        onClearNonFavorites: @escaping () -> Void,
+        onClearAll: @escaping () -> Void,
         onPaste: @escaping (ClipboardItem) -> Void,
         onCopy: @escaping (ClipboardItem) -> Void,
         onDelete: @escaping (ClipboardItem) -> Void
@@ -39,7 +47,11 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         let contentView = ClipboardPopupView(
             viewModel: viewModel,
             escapeClosesWindow: escapeClosesWindow,
+            isRecordingPaused: isRecordingPaused,
             onClose: onClose,
+            onOpenSettings: onOpenSettings,
+            onClearNonFavorites: onClearNonFavorites,
+            onClearAll: onClearAll,
             onPaste: onPaste,
             onCopy: onCopy,
             onDelete: onDelete

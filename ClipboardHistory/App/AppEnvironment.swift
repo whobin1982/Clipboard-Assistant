@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import SwiftUI
 
 @MainActor
 final class AppEnvironment: ObservableObject {
@@ -166,8 +167,21 @@ final class AppEnvironment: ObservableObject {
             viewModel: historyViewModel,
             previousApplication: previousApplication,
             escapeClosesWindow: settingsViewModel.settings.escapeClosesWindow,
+            isRecordingPaused: Binding(
+                get: { self.isRecordingPaused },
+                set: { self.isRecordingPaused = $0 }
+            ),
             onClose: { [weak self] in
                 self?.searchWindowPresenter.orderOut()
+            },
+            onOpenSettings: { [weak self] in
+                self?.openSettings()
+            },
+            onClearNonFavorites: { [weak self] in
+                self?.settingsViewModel.clearNonFavorites()
+            },
+            onClearAll: { [weak self] in
+                self?.settingsViewModel.clearAll()
             },
             onPaste: pasteFromSearchWindow,
             onCopy: copy,

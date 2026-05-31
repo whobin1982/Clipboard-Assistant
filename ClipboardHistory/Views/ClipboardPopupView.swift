@@ -4,9 +4,14 @@ import SwiftUI
 struct ClipboardPopupView: View {
     @ObservedObject var viewModel: ClipboardHistoryViewModel
     @StateObject private var selectionController = ClipboardSelectionController()
+    @State private var clearConfirmation: ClipboardClearConfirmation?
 
     var escapeClosesWindow: Bool
+    @Binding var isRecordingPaused: Bool
     var onClose: () -> Void
+    var onOpenSettings: () -> Void
+    var onClearNonFavorites: () -> Void
+    var onClearAll: () -> Void
     var onPaste: (ClipboardItem) -> Void
     var onCopy: (ClipboardItem) -> Void
     var onDelete: (ClipboardItem) -> Void
@@ -32,8 +37,39 @@ struct ClipboardPopupView: View {
             )
             .frame(width: 0, height: 0)
 
-            TextField("搜索剪贴板历史", text: $viewModel.query)
-                .textFieldStyle(.roundedBorder)
+            HStack(spacing: 8) {
+                TextField("搜索剪贴板历史", text: $viewModel.query)
+                    .textFieldStyle(.roundedBorder)
+
+                Toggle("自动记录", isOn: isRecordingEnabled)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .fixedSize()
+                    .help(isRecordingPaused ? "点击后继续记录剪贴板" : "点击后暂停记录剪贴板")
+
+                Menu {
+                    Button("清空非收藏记录") {
+                        clearConfirmation = .nonFavorites
+                    }
+
+                    Button("清空全部记录", role: .destructive) {
+                        clearConfirmation = .all
+                    }
+                } label: {
+                    Label("删除历史", systemImage: "trash")
+                }
+                .menuStyle(.button)
+                .controlSize(.small)
+                .help("清理剪贴板历史记录")
+
+                Button {
+                    onOpenSettings()
+                } label: {
+                    Label("设置", systemImage: "gearshape")
+                }
+                .controlSize(.small)
+                .help("打开设置")
+            }
 
             if let message = viewModel.lastErrorMessage {
                 Text(message)
@@ -65,8 +101,64 @@ struct ClipboardPopupView: View {
         .onAppear {
             viewModel.reload()
         }
+        .alert(item: $clearConfirmation) { confirmation in
+            Alert(
+                title: Text(confirmation.title),
+                message: Text(confirmation.message),
+                primaryButton: .destructive(Text(confirmation.confirmTitle)) {
+                    switch confirmation {
+                    case .nonFavorites:
+                        onClearNonFavorites()
+                    case .all:
+                        onClearAll()
+                    }
+                },
+                secondaryButton: .cancel()
+            )
+        }
         .onChange(of: viewModel.filteredItems.map(\.id)) { _, _ in
             selectionController.reconcileSelection(with: viewModel.filteredItems)
+        }
+    }
+
+    private var isRecordingEnabled: Binding<Bool> {
+        Binding(
+            get: { !isRecordingPaused },
+            set: { isRecordingPaused = !$0 }
+        )
+    }
+}
+
+private enum ClipboardClearConfirmation: Hashable, Identifiable {
+    case nonFavorites
+    case all
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .nonFavorites:
+            return "清空非收藏记录？"
+        case .all:
+            return "清空全部记录？"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .nonFavorites:
+            return "这会删除所有没有标记为收藏的剪贴板记录。"
+        case .all:
+            return "这会删除所有剪贴板记录，包括收藏记录。"
+        }
+    }
+
+    var confirmTitle: String {
+        switch self {
+        case .nonFavorites:
+            return "清空非收藏记录"
+        case .all:
+            return "清空全部记录"
         }
     }
 }

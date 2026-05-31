@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import XCTest
 @testable import ClipboardHistory
 
@@ -296,6 +297,63 @@ final class AppEnvironmentTests: XCTestCase {
     }
 
     @MainActor
+    func testOpenSearchPassesToolbarActionsToPresenter() throws {
+        let recorder = AppEnvironmentCallRecorder()
+        let item = ClipboardItem.text("Saved text")
+        let store = AppEnvironmentFakeStore(items: [item], recorder: recorder)
+        let searchPresenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let settingsPresenter = AppEnvironmentFakeSettingsWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            store: store,
+            searchWindowPresenter: searchPresenter,
+            settingsWindowPresenter: settingsPresenter,
+            storageUsageProvider: {
+                recorder.record("storageUsage")
+                return 0
+            }
+        )
+
+        environment.openSearch()
+        recorder.calls.removeAll()
+        try XCTUnwrap(searchPresenter.onOpenSettings)()
+        try XCTUnwrap(searchPresenter.onClearNonFavorites)()
+        try XCTUnwrap(searchPresenter.onClearAll)()
+
+        XCTAssertEqual(
+            recorder.calls,
+            [
+                "storageUsage",
+                "showSettings",
+                "fetchAll",
+                "fetchAll",
+                "fetchAll",
+                "storageUsage",
+                "fetchAll",
+                "fetchAll",
+                "storageUsage"
+            ]
+        )
+        XCTAssertTrue(try store.fetchAll().isEmpty)
+    }
+
+    @MainActor
+    func testOpenSearchPassesRecordingPauseBindingToPresenter() throws {
+        let recorder = AppEnvironmentCallRecorder()
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            isRecordingPaused: false,
+            searchWindowPresenter: presenter
+        )
+
+        environment.openSearch()
+        XCTAssertEqual(presenter.isRecordingPaused?.wrappedValue, false)
+
+        try XCTUnwrap(presenter.isRecordingPaused).wrappedValue = true
+
+        XCTAssertTrue(environment.isRecordingPaused)
+    }
+
+    @MainActor
     func testOpenSettingsRefreshesStorageUsageAndShowsSettingsPresenter() {
         let recorder = AppEnvironmentCallRecorder()
         let presenter = AppEnvironmentFakeSettingsWindowPresenter(recorder: recorder)
@@ -366,7 +424,11 @@ final class SearchWindowPresenterTests: XCTestCase {
             viewModel: viewModel,
             previousApplication: nil,
             escapeClosesWindow: true,
+            isRecordingPaused: .constant(false),
             onClose: {},
+            onOpenSettings: {},
+            onClearNonFavorites: {},
+            onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
             onDelete: { _ in }
@@ -392,7 +454,11 @@ final class SearchWindowPresenterTests: XCTestCase {
             viewModel: viewModel,
             previousApplication: nil,
             escapeClosesWindow: true,
+            isRecordingPaused: .constant(false),
             onClose: {},
+            onOpenSettings: {},
+            onClearNonFavorites: {},
+            onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
             onDelete: { _ in }
@@ -418,7 +484,11 @@ final class SearchWindowPresenterTests: XCTestCase {
             viewModel: firstViewModel,
             previousApplication: nil,
             escapeClosesWindow: true,
+            isRecordingPaused: .constant(false),
             onClose: {},
+            onOpenSettings: {},
+            onClearNonFavorites: {},
+            onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
             onDelete: { _ in }
@@ -438,7 +508,11 @@ final class SearchWindowPresenterTests: XCTestCase {
             viewModel: secondViewModel,
             previousApplication: nil,
             escapeClosesWindow: true,
+            isRecordingPaused: .constant(false),
             onClose: {},
+            onOpenSettings: {},
+            onClearNonFavorites: {},
+            onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
             onDelete: { _ in }
@@ -498,6 +572,10 @@ private final class AppEnvironmentFakeStore: ClipboardStore {
 private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresenting {
     private let recorder: AppEnvironmentCallRecorder
     private(set) var onPaste: ((ClipboardItem) -> Void)?
+    private(set) var onOpenSettings: (() -> Void)?
+    private(set) var onClearNonFavorites: (() -> Void)?
+    private(set) var onClearAll: (() -> Void)?
+    private(set) var isRecordingPaused: Binding<Bool>?
 
     init(recorder: AppEnvironmentCallRecorder) {
         self.recorder = recorder
@@ -507,12 +585,20 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
         viewModel: ClipboardHistoryViewModel,
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
+        isRecordingPaused: Binding<Bool>,
         onClose: @escaping () -> Void,
+        onOpenSettings: @escaping () -> Void,
+        onClearNonFavorites: @escaping () -> Void,
+        onClearAll: @escaping () -> Void,
         onPaste: @escaping (ClipboardItem) -> Void,
         onCopy: @escaping (ClipboardItem) -> Void,
         onDelete: @escaping (ClipboardItem) -> Void
     ) {
         recorder.record(previousApplication == nil ? "show" : "showWithPreviousApplication")
+        self.isRecordingPaused = isRecordingPaused
+        self.onOpenSettings = onOpenSettings
+        self.onClearNonFavorites = onClearNonFavorites
+        self.onClearAll = onClearAll
         self.onPaste = onPaste
     }
 
