@@ -122,7 +122,7 @@ private final class KeyEventMonitorView: NSView {
             case 126:
                 self.onUpArrow()
                 return nil
-            case 36:
+            case 36, 76:
                 self.onReturn()
                 return nil
             case 53:
