@@ -177,7 +177,7 @@ private final class AppEnvironmentFakeStore: ClipboardStore {
 
     func fetchAll() throws -> [ClipboardItem] {
         recorder?.record("fetchAll")
-        items
+        return items
     }
 
     func setFavorite(id: UUID, isFavorite: Bool) throws {
