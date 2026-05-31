@@ -4,7 +4,7 @@ import Foundation
 
 protocol PasteboardWriting {
     func writeText(_ text: String) throws
-    func writeImage(_ image: NSImage) throws
+    func writeImage(_ payload: ClipboardImagePayload) throws
 }
 
 enum ClipboardPasteboardMarker {
@@ -65,10 +65,21 @@ final class PasteService {
             guard let imagePath = item.imagePath else {
                 throw PasteServiceError.missingImagePath
             }
-            guard let image = NSImage(contentsOfFile: imagePath) else {
+            let imageURL = URL(fileURLWithPath: imagePath)
+            let imageData: Data
+            do {
+                imageData = try Data(contentsOf: imageURL)
+            } catch {
                 throw PasteServiceError.unreadableImage(imagePath)
             }
-            try pasteboard.writeImage(image)
+            let payload = ClipboardImagePayload(
+                data: imageData,
+                pasteboardType: ClipboardImagePayload.pasteboardType(forFileExtension: imageURL.pathExtension)
+            )
+            guard payload.image != nil else {
+                throw PasteServiceError.unreadableImage(imagePath)
+            }
+            try pasteboard.writeImage(payload)
         }
     }
 
@@ -113,16 +124,39 @@ final class SystemPasteboardWriter: PasteboardWriting {
         }
     }
 
-    func writeImage(_ image: NSImage) throws {
+    func writeImage(_ payload: ClipboardImagePayload) throws {
         pasteboard.clearContents()
-        pasteboard.declareTypes([.png, .tiff, ClipboardPasteboardMarker.type], owner: nil)
-        let imageData = try Self.imagePasteboardData(from: image)
-        guard
-            pasteboard.setData(imageData.png, forType: .png),
-            pasteboard.setData(imageData.tiff, forType: .tiff),
-            pasteboard.setString(ClipboardPasteboardMarker.value, forType: ClipboardPasteboardMarker.type)
-        else {
+        let types = Self.uniqueTypes([
+            payload.pasteboardType,
+            .png,
+            .tiff,
+            ClipboardPasteboardMarker.type
+        ])
+        pasteboard.declareTypes(types, owner: nil)
+        guard let image = payload.image else {
             throw PasteServiceError.pasteboardWriteFailed
+        }
+        let fallbackData = try Self.imagePasteboardData(from: image)
+        guard pasteboard.setData(payload.data, forType: payload.pasteboardType) else {
+            throw PasteServiceError.pasteboardWriteFailed
+        }
+        if payload.pasteboardType != .png,
+           !pasteboard.setData(fallbackData.png, forType: .png) {
+            throw PasteServiceError.pasteboardWriteFailed
+        }
+        if payload.pasteboardType != .tiff,
+           !pasteboard.setData(fallbackData.tiff, forType: .tiff) {
+            throw PasteServiceError.pasteboardWriteFailed
+        }
+        guard pasteboard.setString(ClipboardPasteboardMarker.value, forType: ClipboardPasteboardMarker.type) else {
+            throw PasteServiceError.pasteboardWriteFailed
+        }
+    }
+
+    private static func uniqueTypes(_ types: [NSPasteboard.PasteboardType]) -> [NSPasteboard.PasteboardType] {
+        var seen: Set<String> = []
+        return types.filter { type in
+            seen.insert(type.rawValue).inserted
         }
     }
 

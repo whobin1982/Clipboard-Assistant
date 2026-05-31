@@ -11,7 +11,7 @@ final class PasteServiceTests: XCTestCase {
         try service.copy(.text("Saved text"))
 
         XCTAssertEqual(pasteboard.writtenText, "Saved text")
-        XCTAssertNil(pasteboard.writtenImage)
+        XCTAssertNil(pasteboard.writtenImagePayload)
     }
 
     func testSystemPasteboardWriterMarksTextAsClipboardHistoryCopy() throws {
@@ -39,7 +39,8 @@ final class PasteServiceTests: XCTestCase {
 
         try service.copy(.image(imagePath: imageURL.path, thumbnailPath: "/tmp/thumb.png"))
 
-        XCTAssertNotNil(pasteboard.writtenImage)
+        XCTAssertEqual(pasteboard.writtenImagePayload?.data, imageData)
+        XCTAssertEqual(pasteboard.writtenImagePayload?.pasteboardType, .png)
         XCTAssertNil(pasteboard.writtenText)
     }
 
@@ -47,7 +48,8 @@ final class PasteServiceTests: XCTestCase {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let writer = SystemPasteboardWriter(pasteboard: pasteboard)
 
-        try writer.writeImage(makeTestImage())
+        let imageData = try XCTUnwrap(makeTestImage().pngData)
+        try writer.writeImage(ClipboardImagePayload(data: imageData, pasteboardType: .png))
 
         XCTAssertEqual(
             pasteboard.string(forType: ClipboardPasteboardMarker.type),
@@ -55,27 +57,33 @@ final class PasteServiceTests: XCTestCase {
         )
     }
 
-    func testSystemPasteboardWriterPublishesPngImageData() throws {
+    func testSystemPasteboardWriterPublishesOriginalImageDataAndFallbacks() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let writer = SystemPasteboardWriter(pasteboard: pasteboard)
+        let jpegData = try XCTUnwrap(makeTestImage().jpegData)
+        let jpegType = NSPasteboard.PasteboardType("public.jpeg")
 
-        try writer.writeImage(makeTestImage())
+        try writer.writeImage(ClipboardImagePayload(data: jpegData, pasteboardType: jpegType))
 
+        XCTAssertEqual(pasteboard.data(forType: jpegType), jpegData)
         XCTAssertNotNil(pasteboard.data(forType: .png))
+        XCTAssertNotNil(pasteboard.data(forType: .tiff))
         XCTAssertEqual(
             pasteboard.string(forType: ClipboardPasteboardMarker.type),
             ClipboardPasteboardMarker.value
         )
     }
 
-    func testSystemPasteboardReaderReadsPngImageData() throws {
+    func testSystemPasteboardReaderReadsPngImagePayload() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let imageData = try XCTUnwrap(makeTestImage().pngData)
         pasteboard.declareTypes([.png], owner: nil)
         pasteboard.setData(imageData, forType: .png)
         let reader = SystemPasteboardReader(pasteboard: pasteboard)
+        let payload = try XCTUnwrap(reader.readImagePayload())
 
-        XCTAssertNotNil(reader.readImage())
+        XCTAssertEqual(payload.data, imageData)
+        XCTAssertEqual(payload.pasteboardType, .png)
     }
 
     func testSystemPasteboardReaderIgnoresImageFileURL() throws {
@@ -89,7 +97,7 @@ final class PasteServiceTests: XCTestCase {
         pasteboard.writeObjects([imageURL as NSURL])
         let reader = SystemPasteboardReader(pasteboard: pasteboard)
 
-        XCTAssertNil(reader.readImage())
+        XCTAssertNil(reader.readImagePayload())
     }
 
     func testCopyAndPasteCopiesThenSendsPasteCommand() throws {
@@ -166,7 +174,7 @@ final class PasteServiceTests: XCTestCase {
 private final class FakePasteboardWriter: PasteboardWriting {
     private let recorder: CallRecorder?
     private(set) var writtenText: String?
-    private(set) var writtenImage: NSImage?
+    private(set) var writtenImagePayload: ClipboardImagePayload?
 
     init(recorder: CallRecorder? = nil) {
         self.recorder = recorder
@@ -177,8 +185,8 @@ private final class FakePasteboardWriter: PasteboardWriting {
         recorder?.record("writeText:\(text)")
     }
 
-    func writeImage(_ image: NSImage) throws {
-        writtenImage = image
+    func writeImage(_ payload: ClipboardImagePayload) throws {
+        writtenImagePayload = payload
         recorder?.record("writeImage")
     }
 }
@@ -230,5 +238,15 @@ private extension NSImage {
             return nil
         }
         return bitmap.representation(using: .png, properties: [:])
+    }
+
+    var jpegData: Data? {
+        guard
+            let tiffRepresentation,
+            let bitmap = NSBitmapImageRep(data: tiffRepresentation)
+        else {
+            return nil
+        }
+        return bitmap.representation(using: .jpeg, properties: [:])
     }
 }

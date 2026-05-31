@@ -4,18 +4,69 @@ import Foundation
 protocol PasteboardReading {
     var changeCount: Int { get }
     func readString() -> String?
-    func readImage() -> NSImage?
+    func readImagePayload() -> ClipboardImagePayload?
     func wasWrittenByClipboardHistory() -> Bool
 }
 
 protocol ImageStoring {
-    func save(_ image: NSImage, id: UUID) throws -> (imagePath: String, thumbnailPath: String)
+    func save(_ payload: ClipboardImagePayload, id: UUID) throws -> (imagePath: String, thumbnailPath: String)
 }
 
 extension ImageStorage: ImageStoring {}
 
 extension Notification.Name {
     static let clipboardHistoryDidChange = Notification.Name("ClipboardHistoryDidChange")
+}
+
+struct ClipboardImagePayload: Equatable {
+    let data: Data
+    let pasteboardType: NSPasteboard.PasteboardType
+
+    var image: NSImage? {
+        NSImage(data: data)
+    }
+
+    var fileExtension: String {
+        Self.fileExtension(for: pasteboardType)
+    }
+
+    static func pasteboardType(forFileExtension fileExtension: String) -> NSPasteboard.PasteboardType {
+        switch fileExtension.lowercased() {
+        case "png":
+            return .png
+        case "tif", "tiff":
+            return .tiff
+        case "jpg", "jpeg":
+            return NSPasteboard.PasteboardType("public.jpeg")
+        case "heic":
+            return NSPasteboard.PasteboardType("public.heic")
+        case "heif":
+            return NSPasteboard.PasteboardType("public.heif")
+        case "gif":
+            return NSPasteboard.PasteboardType("com.compuserve.gif")
+        default:
+            return .png
+        }
+    }
+
+    private static func fileExtension(for pasteboardType: NSPasteboard.PasteboardType) -> String {
+        switch pasteboardType {
+        case .png:
+            return "png"
+        case .tiff:
+            return "tiff"
+        case NSPasteboard.PasteboardType("public.jpeg"):
+            return "jpg"
+        case NSPasteboard.PasteboardType("public.heic"):
+            return "heic"
+        case NSPasteboard.PasteboardType("public.heif"):
+            return "heif"
+        case NSPasteboard.PasteboardType("com.compuserve.gif"):
+            return "gif"
+        default:
+            return "png"
+        }
+    }
 }
 
 final class SystemPasteboardReader: PasteboardReading {
@@ -42,15 +93,15 @@ final class SystemPasteboardReader: PasteboardReading {
         pasteboard.string(forType: .string)
     }
 
-    func readImage() -> NSImage? {
+    func readImagePayload() -> ClipboardImagePayload? {
         for type in Self.directImageTypes {
             guard
                 let imageData = pasteboard.data(forType: type),
-                let image = NSImage(data: imageData)
+                NSImage(data: imageData) != nil
             else {
                 continue
             }
-            return image
+            return ClipboardImagePayload(data: imageData, pasteboardType: type)
         }
         return nil
     }
@@ -116,8 +167,8 @@ final class ClipboardMonitor {
             return
         }
 
-        if let image = pasteboard.readImage() {
-            recordImage(image, changeCount: currentChangeCount)
+        if let imagePayload = pasteboard.readImagePayload() {
+            recordImage(imagePayload, changeCount: currentChangeCount)
             return
         }
 
@@ -145,11 +196,11 @@ final class ClipboardMonitor {
         NotificationCenter.default.post(name: .clipboardHistoryDidChange, object: self)
     }
 
-    private func recordImage(_ image: NSImage, changeCount: Int) {
+    private func recordImage(_ imagePayload: ClipboardImagePayload, changeCount: Int) {
         let id = UUID()
         let paths: (imagePath: String, thumbnailPath: String)
         do {
-            paths = try imageStorage.save(image, id: id)
+            paths = try imageStorage.save(imagePayload, id: id)
         } catch {
             // Image encoding/storage failures are intentionally skipped so later
             // pasteboard changes can still be recorded.

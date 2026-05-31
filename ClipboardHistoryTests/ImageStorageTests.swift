@@ -21,12 +21,16 @@ final class ImageStorageTests: XCTestCase {
 
     func testSaveWritesOriginalThumbnailAndReportsUsage() throws {
         let storage = try ImageStorage(directory: temporaryDirectory)
-        let image = makeImage(size: NSSize(width: 100, height: 100))
+        let imageData = try XCTUnwrap(makeImage(size: NSSize(width: 100, height: 100)).pngData)
+        let payload = ClipboardImagePayload(data: imageData, pasteboardType: .png)
 
-        let paths = try storage.save(image, id: UUID())
+        let paths = try storage.save(payload, id: UUID())
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.imagePath))
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.thumbnailPath))
+        XCTAssertEqual(URL(fileURLWithPath: paths.imagePath).pathExtension, "png")
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: paths.imagePath)), imageData)
+        XCTAssertNotNil(NSImage(contentsOfFile: paths.thumbnailPath))
         XCTAssertGreaterThan(storage.storageUsageBytes(), 0)
     }
 
@@ -71,5 +75,17 @@ final class ImageStorageTests: XCTestCase {
         NSRect(origin: .zero, size: size).fill()
         image.unlockFocus()
         return image
+    }
+}
+
+private extension NSImage {
+    var pngData: Data? {
+        guard
+            let tiffRepresentation,
+            let bitmap = NSBitmapImageRep(data: tiffRepresentation)
+        else {
+            return nil
+        }
+        return bitmap.representation(using: .png, properties: [:])
     }
 }
