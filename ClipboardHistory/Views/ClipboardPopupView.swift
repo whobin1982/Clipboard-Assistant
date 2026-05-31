@@ -38,9 +38,6 @@ struct ClipboardPopupView: View {
             .frame(width: 0, height: 0)
 
             HStack(spacing: 8) {
-                TextField("搜索剪贴板历史", text: $viewModel.query)
-                    .textFieldStyle(.roundedBorder)
-
                 Toggle("自动记录", isOn: isRecordingEnabled)
                     .toggleStyle(.switch)
                     .controlSize(.small)
@@ -69,6 +66,12 @@ struct ClipboardPopupView: View {
                 }
                 .controlSize(.small)
                 .help("打开设置")
+
+                Spacer(minLength: 12)
+
+                TextField("搜索剪贴板历史", text: $viewModel.query)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minWidth: 160, maxWidth: 220)
             }
 
             if let message = viewModel.lastErrorMessage {
