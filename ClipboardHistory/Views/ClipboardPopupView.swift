@@ -85,6 +85,8 @@ struct ClipboardPopupView: View {
             }
 
             HStack(spacing: 8) {
+                Spacer()
+
                 Picker("记录类型", selection: $viewModel.filter) {
                     ForEach(ClipboardHistoryFilter.allCases) { filter in
                         Text(filter.title).tag(filter)
@@ -98,6 +100,7 @@ struct ClipboardPopupView: View {
 
                 Spacer()
             }
+            .frame(maxWidth: .infinity)
 
             if let message = viewModel.lastErrorMessage {
                 Text(message)
