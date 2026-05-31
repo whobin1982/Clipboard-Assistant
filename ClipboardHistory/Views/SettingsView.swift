@@ -112,7 +112,7 @@ private struct SettingsFormView: View {
                     }
                 }
             }
-            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: 480, alignment: .leading)
             .padding(24)
         }
         .alert(item: $clearConfirmation) { confirmation in
@@ -130,7 +130,7 @@ private struct SettingsFormView: View {
                 secondaryButton: .cancel()
             )
         }
-        .frame(minWidth: 560, minHeight: 520)
+        .frame(minWidth: 480, minHeight: 520)
     }
 
     private var launchAtLogin: Binding<Bool> {

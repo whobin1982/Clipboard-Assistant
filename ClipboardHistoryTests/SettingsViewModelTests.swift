@@ -530,6 +530,28 @@ final class SearchWindowPresenterTests: XCTestCase {
     }
 }
 
+@MainActor
+final class SettingsWindowPresenterTests: XCTestCase {
+    func testSettingsWindowUsesCompactWidth() throws {
+        let presenter = SettingsWindowPresenter()
+        let environment = AppEnvironment()
+
+        presenter.show(environment: environment)
+        defer {
+            NSApp.windows
+                .first { $0.title == "剪贴板助手设置" }?
+                .close()
+        }
+
+        let window = try XCTUnwrap(
+            NSApp.windows.first { $0.title == "剪贴板助手设置" }
+        )
+
+        XCTAssertLessThanOrEqual(window.frame.width, 548)
+        XCTAssertEqual(window.minSize.width, 480, accuracy: 1)
+    }
+}
+
 private final class AppEnvironmentFakeStore: ClipboardStore {
     private var items: [ClipboardItem]
     private let recorder: AppEnvironmentCallRecorder?
