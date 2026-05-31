@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		4D0F3C118D98D9E9127FD527 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18132A4F337086A4EAF35C52 /* MenuBarView.swift */; };
 		526CDF1F468A3610F5E1A08F /* ClipboardHistorySmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2B55E512F6E53C76A4E34F8 /* ClipboardHistorySmokeTests.swift */; };
+		587B5D2C9D4648C9A51E0D11 /* ClipboardPopupViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587B5D2C9D4648C9A51E0D10 /* ClipboardPopupViewTests.swift */; };
 		5B22A4472DB4412BB1A60101 /* ClipboardSelectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B22A4472DB4412BB1A60100 /* ClipboardSelectionController.swift */; };
 		5B22A4472DB4412BB1A60103 /* ClipboardSelectionControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B22A4472DB4412BB1A60102 /* ClipboardSelectionControllerTests.swift */; };
 		5B22A4472DB4412BB1A60105 /* SettingsWindowPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B22A4472DB4412BB1A60104 /* SettingsWindowPresenter.swift */; };
@@ -62,6 +63,7 @@
 		290423EEB60818D1FEAF9F19 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		47BD1C4373414A48A4071CB7 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		53AF7D8DA531E0C01DEEDF37 /* ClipboardHistoryApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryApp.swift; sourceTree = "<group>"; };
+		587B5D2C9D4648C9A51E0D10 /* ClipboardPopupViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPopupViewTests.swift; sourceTree = "<group>"; };
 		5B22A4472DB4412BB1A60100 /* ClipboardSelectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSelectionController.swift; sourceTree = "<group>"; };
 		5B22A4472DB4412BB1A60102 /* ClipboardSelectionControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSelectionControllerTests.swift; sourceTree = "<group>"; };
 		5B22A4472DB4412BB1A60104 /* SettingsWindowPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowPresenter.swift; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 			children = (
 				F2B55E512F6E53C76A4E34F8 /* ClipboardHistorySmokeTests.swift */,
 				2DA4806B9E8D4D3F90D0DB1C /* ClipboardItemTests.swift */,
+				587B5D2C9D4648C9A51E0D10 /* ClipboardPopupViewTests.swift */,
 				5B22A4472DB4412BB1A60102 /* ClipboardSelectionControllerTests.swift */,
 				B47A2C9E0F18464CB0A3D104 /* ClipboardStoreTests.swift */,
 				79F0B401D0A747D9B0D08A06 /* ClipboardHistoryViewModelTests.swift */,
@@ -315,6 +318,7 @@
 			files = (
 				526CDF1F468A3610F5E1A08F /* ClipboardHistorySmokeTests.swift in Sources */,
 				A2750EEA1EE54BC7A65B0A45 /* ClipboardItemTests.swift in Sources */,
+				587B5D2C9D4648C9A51E0D11 /* ClipboardPopupViewTests.swift in Sources */,
 				5B22A4472DB4412BB1A60103 /* ClipboardSelectionControllerTests.swift in Sources */,
 				B47A2C9E0F18464CB0A3D109 /* ClipboardStoreTests.swift in Sources */,
 				79F0B401D0A747D9B0D08A07 /* ClipboardHistoryViewModelTests.swift in Sources */,

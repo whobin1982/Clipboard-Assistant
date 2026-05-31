@@ -122,24 +122,32 @@ struct ClipboardPopupView: View {
                 ContentUnavailableView("暂无剪贴板记录", systemImage: "doc.on.clipboard")
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                List(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
-                    ClipboardRowView(
-                        item: item,
-                        shortcutNumber: shortcutNumber(for: item.id, fallbackIndex: index),
-                        isSelected: selectionController.selectedItemID == item.id,
-                        onFavorite: { viewModel.toggleFavorite(item) },
-                        onDelete: { onDelete(item) },
-                        onPaste: { onPaste(item) },
-                        onCopy: { onCopy(item) }
-                    )
-                    .background(
-                        ClipboardVisibleRowReporter(
-                            itemID: item.id,
-                            coordinateSpaceName: Self.historyListCoordinateSpace
-                        )
-                    )
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
+                            ClipboardRowView(
+                                item: item,
+                                shortcutNumber: shortcutNumber(for: item.id, fallbackIndex: index),
+                                isSelected: selectionController.selectedItemID == item.id,
+                                onFavorite: { viewModel.toggleFavorite(item) },
+                                onDelete: { onDelete(item) },
+                                onPaste: { onPaste(item) },
+                                onCopy: { onCopy(item) }
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                ClipboardVisibleRowReporter(
+                                    itemID: item.id,
+                                    coordinateSpaceName: Self.historyListCoordinateSpace
+                                )
+                            )
+
+                            if index < visibleItems.index(before: visibleItems.endIndex) {
+                                Divider()
+                            }
+                        }
+                    }
                 }
-                .listStyle(.plain)
                 .frame(minHeight: 180)
                 .coordinateSpace(name: Self.historyListCoordinateSpace)
                 .background(
