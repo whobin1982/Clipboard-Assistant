@@ -8,7 +8,10 @@ struct ClipboardPopupView: View {
 
     var escapeClosesWindow: Bool
     @Binding var isRecordingPaused: Bool
+    @Binding var historyWindowStaysOpen: Bool
+    @Binding var historyWindowAlwaysOnTop: Bool
     var onClose: () -> Void
+    var onWindowBehaviorChanged: (Bool) -> Void
     var onOpenSettings: () -> Void
     var onClearNonFavorites: () -> Void
     var onClearAll: () -> Void
@@ -67,6 +70,17 @@ struct ClipboardPopupView: View {
                 .controlSize(.small)
                 .help("打开设置")
 
+                Toggle("常驻", isOn: effectiveHistoryWindowStaysOpen)
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .disabled(historyWindowAlwaysOnTop)
+                    .help(historyWindowAlwaysOnTop ? "置顶时窗口会自动常驻" : "点击窗口外时不自动关闭")
+
+                Toggle("置顶", isOn: alwaysOnTop)
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .help("让剪贴板历史窗口保持在其他窗口上方")
+
                 Spacer(minLength: 12)
 
                 TextField("搜索剪贴板历史", text: $viewModel.query)
@@ -122,12 +136,29 @@ struct ClipboardPopupView: View {
         .onChange(of: viewModel.filteredItems.map(\.id)) { _, _ in
             selectionController.reconcileSelection(with: viewModel.filteredItems)
         }
+        .onChange(of: historyWindowAlwaysOnTop) { _, alwaysOnTop in
+            onWindowBehaviorChanged(alwaysOnTop)
+        }
     }
 
     private var isRecordingEnabled: Binding<Bool> {
         Binding(
             get: { !isRecordingPaused },
             set: { isRecordingPaused = !$0 }
+        )
+    }
+
+    private var effectiveHistoryWindowStaysOpen: Binding<Bool> {
+        Binding(
+            get: { historyWindowStaysOpen || historyWindowAlwaysOnTop },
+            set: { historyWindowStaysOpen = $0 }
+        )
+    }
+
+    private var alwaysOnTop: Binding<Bool> {
+        Binding(
+            get: { historyWindowAlwaysOnTop },
+            set: { historyWindowAlwaysOnTop = $0 }
         )
     }
 }

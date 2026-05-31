@@ -92,6 +92,19 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(savedSettings.last?.escapeClosesWindow, false)
     }
 
+    func testChangingHistoryWindowBehaviorPersistsSettings() {
+        var savedSettings: [AppSettings] = []
+        let viewModel = SettingsViewModel(settingsDidChange: { savedSettings.append($0) })
+
+        viewModel.historyWindowStaysOpen = true
+        viewModel.historyWindowAlwaysOnTop = true
+
+        XCTAssertTrue(viewModel.settings.historyWindowStaysOpen)
+        XCTAssertTrue(viewModel.settings.historyWindowAlwaysOnTop)
+        XCTAssertEqual(savedSettings.last?.historyWindowStaysOpen, true)
+        XCTAssertEqual(savedSettings.last?.historyWindowAlwaysOnTop, true)
+    }
+
     func testRetentionPolicySupportsForeverAndCustomDays() {
         var cleanupCalls = 0
         let viewModel = SettingsViewModel(retentionDaysDidChange: { _ in cleanupCalls += 1 })
@@ -229,6 +242,47 @@ final class AppEnvironmentTests: XCTestCase {
     }
 
     @MainActor
+    func testPopupPasteImageCopiesImageMarksUsedAndSendsPaste() async throws {
+        let pasteSent = expectation(description: "paste command sent")
+        let recorder = AppEnvironmentCallRecorder()
+        let imageURL = temporaryDirectory.appendingPathComponent("saved-image.png")
+        try XCTUnwrap(makeTestImage().pngData).write(to: imageURL)
+        let item = ClipboardItem.image(imagePath: imageURL.path, thumbnailPath: imageURL.path)
+        let store = AppEnvironmentFakeStore(items: [item], recorder: recorder)
+        let pasteboard = AppEnvironmentFakePasteboardWriter(recorder: recorder)
+        let sender = AppEnvironmentFakePasteEventSender(recorder: recorder) {
+            pasteSent.fulfill()
+        }
+        let pasteService = PasteService(pasteboard: pasteboard, pasteEventSender: sender)
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            store: store,
+            pasteService: pasteService,
+            searchWindowPresenter: presenter
+        )
+
+        environment.openSearch()
+        recorder.calls.removeAll()
+        try XCTUnwrap(presenter.onPaste)(item)
+
+        await fulfillment(of: [pasteSent], timeout: 1)
+        XCTAssertNotNil(pasteboard.writtenImage)
+        XCTAssertNil(environment.lastErrorMessage)
+        XCTAssertEqual(
+            recorder.calls,
+            [
+                "writeImage",
+                "insert",
+                "fetchAll",
+                "orderOut",
+                "consumePreviousApplication",
+                "sendPasteCommand"
+            ]
+        )
+        XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
+    }
+
+    @MainActor
     func testPopupSelectionCopyOnlyDoesNotSendPasteCommand() throws {
         let recorder = AppEnvironmentCallRecorder()
         let item = ClipboardItem.text("Saved text")
@@ -354,6 +408,23 @@ final class AppEnvironmentTests: XCTestCase {
     }
 
     @MainActor
+    func testOpenSearchPassesHistoryWindowBehaviorBindingsToPresenter() throws {
+        let recorder = AppEnvironmentCallRecorder()
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(searchWindowPresenter: presenter)
+
+        environment.openSearch()
+        XCTAssertEqual(presenter.historyWindowStaysOpen?.wrappedValue, false)
+        XCTAssertEqual(presenter.historyWindowAlwaysOnTop?.wrappedValue, false)
+
+        try XCTUnwrap(presenter.historyWindowStaysOpen).wrappedValue = true
+        try XCTUnwrap(presenter.historyWindowAlwaysOnTop).wrappedValue = true
+
+        XCTAssertTrue(environment.settingsViewModel.settings.historyWindowStaysOpen)
+        XCTAssertTrue(environment.settingsViewModel.settings.historyWindowAlwaysOnTop)
+    }
+
+    @MainActor
     func testOpenSettingsRefreshesStorageUsageAndShowsSettingsPresenter() {
         let recorder = AppEnvironmentCallRecorder()
         let presenter = AppEnvironmentFakeSettingsWindowPresenter(recorder: recorder)
@@ -408,12 +479,21 @@ final class SearchWindowPresenterTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
+        closeSearchWindows()
         UserDefaults.standard.removeObject(forKey: autosaveDefaultsKey)
     }
 
     override func tearDown() {
+        closeSearchWindows()
         UserDefaults.standard.removeObject(forKey: autosaveDefaultsKey)
         super.tearDown()
+    }
+
+    private func closeSearchWindows() {
+        NSApp.windows
+            .compactMap { $0 as? NSPanel }
+            .filter { $0.title == "剪贴板历史" }
+            .forEach { $0.close() }
     }
 
     func testSearchWindowHidesWhenInactiveAndAutosavesFrame() {
@@ -425,7 +505,10 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            historyWindowStaysOpen: .constant(false),
+            historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
+            onWindowBehaviorChanged: { _ in },
             onOpenSettings: {},
             onClearNonFavorites: {},
             onClearAll: {},
@@ -437,13 +520,45 @@ final class SearchWindowPresenterTests: XCTestCase {
 
         let panel = NSApp.windows
             .compactMap { $0 as? NSPanel }
-            .first { $0.title == "剪贴板历史" }
+            .first { $0.title == "剪贴板历史" && $0.isVisible }
 
         XCTAssertNotNil(panel)
-        XCTAssertEqual(panel?.frameAutosaveName, NSWindow.FrameAutosaveName("ClipboardHistorySearchWindow"))
         XCTAssertEqual(panel?.hidesOnDeactivate, false)
         XCTAssertGreaterThanOrEqual(panel?.minSize.width ?? 0, 520)
         XCTAssertGreaterThanOrEqual(panel?.minSize.height ?? 0, 360)
+    }
+
+    func testAlwaysOnTopControlsPanelLevel() throws {
+        let presenter = SearchWindowPresenter()
+        let viewModel = ClipboardHistoryViewModel(store: AppEnvironmentFakeStore(items: []))
+
+        presenter.show(
+            viewModel: viewModel,
+            previousApplication: nil,
+            escapeClosesWindow: true,
+            isRecordingPaused: .constant(false),
+            historyWindowStaysOpen: .constant(false),
+            historyWindowAlwaysOnTop: .constant(true),
+            onClose: {},
+            onWindowBehaviorChanged: { _ in },
+            onOpenSettings: {},
+            onClearNonFavorites: {},
+            onClearAll: {},
+            onPaste: { _ in },
+            onCopy: { _ in },
+            onDelete: { _ in }
+        )
+        defer { presenter.orderOut() }
+
+        let panel = try XCTUnwrap(
+            NSApp.windows
+                .compactMap { $0 as? NSPanel }
+                .first { $0.title == "剪贴板历史" && $0.isVisible }
+        )
+
+        XCTAssertEqual(panel.level, .floating)
+        presenter.applyWindowBehavior(alwaysOnTop: false)
+        XCTAssertEqual(panel.level, .normal)
     }
 
     func testOrderOutSavesCurrentWindowFrame() throws {
@@ -455,7 +570,10 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            historyWindowStaysOpen: .constant(false),
+            historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
+            onWindowBehaviorChanged: { _ in },
             onOpenSettings: {},
             onClearNonFavorites: {},
             onClearAll: {},
@@ -467,7 +585,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         let panel = try XCTUnwrap(
             NSApp.windows
                 .compactMap { $0 as? NSPanel }
-                .first { $0.title == "剪贴板历史" }
+                .first { $0.title == "剪贴板历史" && $0.isVisible }
         )
         panel.setFrame(NSRect(x: 120, y: 140, width: 620, height: 520), display: false)
 
@@ -485,7 +603,10 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            historyWindowStaysOpen: .constant(false),
+            historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
+            onWindowBehaviorChanged: { _ in },
             onOpenSettings: {},
             onClearNonFavorites: {},
             onClearAll: {},
@@ -497,7 +618,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         let firstPanel = try XCTUnwrap(
             NSApp.windows
                 .compactMap { $0 as? NSPanel }
-                .first { $0.title == "剪贴板历史" }
+                .first { $0.title == "剪贴板历史" && $0.isVisible }
         )
         firstPanel.setFrame(NSRect(x: 120, y: 140, width: 640, height: 560), display: false)
         firstPresenter.orderOut()
@@ -509,7 +630,10 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            historyWindowStaysOpen: .constant(false),
+            historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
+            onWindowBehaviorChanged: { _ in },
             onOpenSettings: {},
             onClearNonFavorites: {},
             onClearAll: {},
@@ -598,6 +722,8 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
     private(set) var onClearNonFavorites: (() -> Void)?
     private(set) var onClearAll: (() -> Void)?
     private(set) var isRecordingPaused: Binding<Bool>?
+    private(set) var historyWindowStaysOpen: Binding<Bool>?
+    private(set) var historyWindowAlwaysOnTop: Binding<Bool>?
 
     init(recorder: AppEnvironmentCallRecorder) {
         self.recorder = recorder
@@ -608,7 +734,10 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
         isRecordingPaused: Binding<Bool>,
+        historyWindowStaysOpen: Binding<Bool>,
+        historyWindowAlwaysOnTop: Binding<Bool>,
         onClose: @escaping () -> Void,
+        onWindowBehaviorChanged: @escaping (Bool) -> Void,
         onOpenSettings: @escaping () -> Void,
         onClearNonFavorites: @escaping () -> Void,
         onClearAll: @escaping () -> Void,
@@ -618,6 +747,8 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
     ) {
         recorder.record(previousApplication == nil ? "show" : "showWithPreviousApplication")
         self.isRecordingPaused = isRecordingPaused
+        self.historyWindowStaysOpen = historyWindowStaysOpen
+        self.historyWindowAlwaysOnTop = historyWindowAlwaysOnTop
         self.onOpenSettings = onOpenSettings
         self.onClearNonFavorites = onClearNonFavorites
         self.onClearAll = onClearAll
@@ -631,6 +762,10 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
     func consumePreviousApplication() -> NSRunningApplication? {
         recorder.record("consumePreviousApplication")
         return nil
+    }
+
+    func applyWindowBehavior(alwaysOnTop: Bool) {
+        recorder.record(alwaysOnTop ? "applyAlwaysOnTop" : "applyNormalLevel")
     }
 }
 
@@ -696,6 +831,27 @@ private final class AppEnvironmentCallRecorder {
 
     func record(_ call: String) {
         calls.append(call)
+    }
+}
+
+private func makeTestImage() -> NSImage {
+    let image = NSImage(size: NSSize(width: 4, height: 4))
+    image.lockFocus()
+    NSColor.systemBlue.setFill()
+    NSRect(x: 0, y: 0, width: 4, height: 4).fill()
+    image.unlockFocus()
+    return image
+}
+
+private extension NSImage {
+    var pngData: Data? {
+        guard
+            let tiffRepresentation,
+            let bitmap = NSBitmapImageRep(data: tiffRepresentation)
+        else {
+            return nil
+        }
+        return bitmap.representation(using: .png, properties: [:])
     }
 }
 

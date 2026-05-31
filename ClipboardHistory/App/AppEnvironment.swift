@@ -171,8 +171,19 @@ final class AppEnvironment: ObservableObject {
                 get: { self.isRecordingPaused },
                 set: { self.isRecordingPaused = $0 }
             ),
+            historyWindowStaysOpen: Binding(
+                get: { self.settingsViewModel.historyWindowStaysOpen },
+                set: { self.settingsViewModel.historyWindowStaysOpen = $0 }
+            ),
+            historyWindowAlwaysOnTop: Binding(
+                get: { self.settingsViewModel.historyWindowAlwaysOnTop },
+                set: { self.settingsViewModel.historyWindowAlwaysOnTop = $0 }
+            ),
             onClose: { [weak self] in
                 self?.searchWindowPresenter.orderOut()
+            },
+            onWindowBehaviorChanged: { [weak self] alwaysOnTop in
+                self?.searchWindowPresenter.applyWindowBehavior(alwaysOnTop: alwaysOnTop)
             },
             onOpenSettings: { [weak self] in
                 self?.openSettings()

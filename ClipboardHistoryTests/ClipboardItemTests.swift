@@ -31,6 +31,26 @@ final class ClipboardItemTests: XCTestCase {
         XCTAssertTrue(AppSettings.default.escapeClosesWindow)
         XCTAssertEqual(AppSettings.default.retentionPolicy, .days(30))
         XCTAssertEqual(AppSettings.default.shortcut.id, ShortcutDefinition.optionCommandV.id)
+        XCTAssertFalse(AppSettings.default.historyWindowStaysOpen)
+        XCTAssertFalse(AppSettings.default.historyWindowAlwaysOnTop)
+    }
+
+    func testMissingHistoryWindowSettingsDecodeToOff() throws {
+        let json = """
+        {
+          "retentionDays": 30,
+          "launchAtLogin": false,
+          "shortcutID": "option-command-v",
+          "selectionAction": "paste",
+          "closeWindowAfterSelection": true,
+          "escapeClosesWindow": true
+        }
+        """
+
+        let settings = try JSONDecoder().decode(AppSettings.self, from: Data(json.utf8))
+
+        XCTAssertFalse(settings.historyWindowStaysOpen)
+        XCTAssertFalse(settings.historyWindowAlwaysOnTop)
     }
 
     func testPermanentRetentionPolicyStoresZeroRetentionDaysForCompatibility() {

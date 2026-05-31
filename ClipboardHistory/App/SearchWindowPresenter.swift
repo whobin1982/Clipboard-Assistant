@@ -8,7 +8,10 @@ protocol SearchWindowPresenting: AnyObject {
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
         isRecordingPaused: Binding<Bool>,
+        historyWindowStaysOpen: Binding<Bool>,
+        historyWindowAlwaysOnTop: Binding<Bool>,
         onClose: @escaping () -> Void,
+        onWindowBehaviorChanged: @escaping (Bool) -> Void,
         onOpenSettings: @escaping () -> Void,
         onClearNonFavorites: @escaping () -> Void,
         onClearAll: @escaping () -> Void,
@@ -18,6 +21,7 @@ protocol SearchWindowPresenting: AnyObject {
     )
     func orderOut()
     func consumePreviousApplication() -> NSRunningApplication?
+    func applyWindowBehavior(alwaysOnTop: Bool)
 }
 
 @MainActor
@@ -28,13 +32,18 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
     private var previousApplication: NSRunningApplication?
     private var localMouseEventMonitor: Any?
     private var globalMouseEventMonitor: Any?
+    private var historyWindowStaysOpen: Binding<Bool> = .constant(false)
+    private var historyWindowAlwaysOnTop: Binding<Bool> = .constant(false)
 
     func show(
         viewModel: ClipboardHistoryViewModel,
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
         isRecordingPaused: Binding<Bool>,
+        historyWindowStaysOpen: Binding<Bool>,
+        historyWindowAlwaysOnTop: Binding<Bool>,
         onClose: @escaping () -> Void,
+        onWindowBehaviorChanged: @escaping (Bool) -> Void,
         onOpenSettings: @escaping () -> Void,
         onClearNonFavorites: @escaping () -> Void,
         onClearAll: @escaping () -> Void,
@@ -43,12 +52,17 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         onDelete: @escaping (ClipboardItem) -> Void
     ) {
         capturePreviousApplication(fallback: previousApplication)
+        self.historyWindowStaysOpen = historyWindowStaysOpen
+        self.historyWindowAlwaysOnTop = historyWindowAlwaysOnTop
 
         let contentView = ClipboardPopupView(
             viewModel: viewModel,
             escapeClosesWindow: escapeClosesWindow,
             isRecordingPaused: isRecordingPaused,
+            historyWindowStaysOpen: historyWindowStaysOpen,
+            historyWindowAlwaysOnTop: historyWindowAlwaysOnTop,
             onClose: onClose,
+            onWindowBehaviorChanged: onWindowBehaviorChanged,
             onOpenSettings: onOpenSettings,
             onClearNonFavorites: onClearNonFavorites,
             onClearAll: onClearAll,
@@ -61,6 +75,7 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         let preservedFrame = panel.frame
         panel.contentViewController = NSHostingController(rootView: contentView)
         panel.setFrame(preservedFrame, display: false)
+        applyWindowBehavior(alwaysOnTop: historyWindowAlwaysOnTop.wrappedValue)
 
         NSApplication.shared.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
@@ -107,7 +122,7 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         panel.isReleasedWhenClosed = false
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
-        panel.level = .floating
+        panel.level = .normal
         panel.minSize = NSSize(width: 520, height: 360)
         panel.delegate = self
         panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
@@ -129,12 +144,17 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
             if event.window === self.panel {
                 return event
             }
+            if self.effectiveHistoryWindowStaysOpen {
+                return event
+            }
             self.orderOut()
             return event
         }
         globalMouseEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: mouseEvents) { [weak self] _ in
             Task { @MainActor in
-                self?.orderOut()
+                guard let self else { return }
+                guard !self.effectiveHistoryWindowStaysOpen else { return }
+                self.orderOut()
             }
         }
     }
@@ -152,5 +172,13 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
 
     private func saveWindowFrame() {
         panel?.saveFrame(usingName: Self.frameAutosaveName)
+    }
+
+    private var effectiveHistoryWindowStaysOpen: Bool {
+        historyWindowStaysOpen.wrappedValue || historyWindowAlwaysOnTop.wrappedValue
+    }
+
+    func applyWindowBehavior(alwaysOnTop: Bool) {
+        panel?.level = alwaysOnTop ? .floating : .normal
     }
 }

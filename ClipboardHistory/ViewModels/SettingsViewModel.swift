@@ -80,6 +80,24 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    var historyWindowStaysOpen: Bool {
+        get { settings.historyWindowStaysOpen }
+        set {
+            settings.historyWindowStaysOpen = newValue
+            settingsDidChange(settings)
+            lastErrorMessage = nil
+        }
+    }
+
+    var historyWindowAlwaysOnTop: Bool {
+        get { settings.historyWindowAlwaysOnTop }
+        set {
+            settings.historyWindowAlwaysOnTop = newValue
+            settingsDidChange(settings)
+            lastErrorMessage = nil
+        }
+    }
+
     var retentionPolicy: RetentionPolicy {
         get { settings.retentionPolicy }
         set {

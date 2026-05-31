@@ -129,6 +129,8 @@ struct AppSettings: Codable, Equatable {
     var selectionAction: ClipboardSelectionAction
     var closeWindowAfterSelection: Bool
     var escapeClosesWindow: Bool
+    var historyWindowStaysOpen: Bool
+    var historyWindowAlwaysOnTop: Bool
 
     var retentionPolicy: RetentionPolicy {
         get {
@@ -162,7 +164,9 @@ struct AppSettings: Codable, Equatable {
         customShortcut: nil,
         selectionAction: .paste,
         closeWindowAfterSelection: true,
-        escapeClosesWindow: true
+        escapeClosesWindow: true,
+        historyWindowStaysOpen: false,
+        historyWindowAlwaysOnTop: false
     )
 
     init(
@@ -172,7 +176,9 @@ struct AppSettings: Codable, Equatable {
         customShortcut: ShortcutDefinition? = nil,
         selectionAction: ClipboardSelectionAction = .paste,
         closeWindowAfterSelection: Bool = true,
-        escapeClosesWindow: Bool = true
+        escapeClosesWindow: Bool = true,
+        historyWindowStaysOpen: Bool = false,
+        historyWindowAlwaysOnTop: Bool = false
     ) {
         self.retentionDays = retentionDays
         self.launchAtLogin = launchAtLogin
@@ -181,6 +187,8 @@ struct AppSettings: Codable, Equatable {
         self.selectionAction = selectionAction
         self.closeWindowAfterSelection = closeWindowAfterSelection
         self.escapeClosesWindow = escapeClosesWindow
+        self.historyWindowStaysOpen = historyWindowStaysOpen
+        self.historyWindowAlwaysOnTop = historyWindowAlwaysOnTop
     }
 
     init(
@@ -195,6 +203,8 @@ struct AppSettings: Codable, Equatable {
         selectionAction = .paste
         closeWindowAfterSelection = true
         escapeClosesWindow = true
+        historyWindowStaysOpen = false
+        historyWindowAlwaysOnTop = false
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -206,6 +216,8 @@ struct AppSettings: Codable, Equatable {
         case selectionAction
         case closeWindowAfterSelection
         case escapeClosesWindow
+        case historyWindowStaysOpen
+        case historyWindowAlwaysOnTop
     }
 
     init(from decoder: Decoder) throws {
@@ -226,6 +238,8 @@ struct AppSettings: Codable, Equatable {
         selectionAction = try container.decodeIfPresent(ClipboardSelectionAction.self, forKey: .selectionAction) ?? .paste
         closeWindowAfterSelection = try container.decodeIfPresent(Bool.self, forKey: .closeWindowAfterSelection) ?? true
         escapeClosesWindow = try container.decodeIfPresent(Bool.self, forKey: .escapeClosesWindow) ?? true
+        historyWindowStaysOpen = try container.decodeIfPresent(Bool.self, forKey: .historyWindowStaysOpen) ?? false
+        historyWindowAlwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .historyWindowAlwaysOnTop) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -238,5 +252,7 @@ struct AppSettings: Codable, Equatable {
         try container.encode(selectionAction, forKey: .selectionAction)
         try container.encode(closeWindowAfterSelection, forKey: .closeWindowAfterSelection)
         try container.encode(escapeClosesWindow, forKey: .escapeClosesWindow)
+        try container.encode(historyWindowStaysOpen, forKey: .historyWindowStaysOpen)
+        try container.encode(historyWindowAlwaysOnTop, forKey: .historyWindowAlwaysOnTop)
     }
 }
