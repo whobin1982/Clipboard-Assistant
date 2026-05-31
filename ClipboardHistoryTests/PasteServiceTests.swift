@@ -11,7 +11,7 @@ final class PasteServiceTests: XCTestCase {
         try service.copy(.text("Saved text"))
 
         XCTAssertEqual(pasteboard.writtenText, "Saved text")
-        XCTAssertNil(pasteboard.writtenImagePayload)
+        XCTAssertNil(pasteboard.writtenImageArchive)
     }
 
     func testSystemPasteboardWriterMarksTextAsClipboardHistoryCopy() throws {
@@ -27,7 +27,7 @@ final class PasteServiceTests: XCTestCase {
         )
     }
 
-    func testCopyImageWritesLoadedImageToPasteboard() throws {
+    func testCopyImageWritesLegacyImageFileAsSingleItemArchive() throws {
         let pasteboard = FakePasteboardWriter()
         let service = PasteService(pasteboard: pasteboard, pasteEventSender: FakePasteEventSender())
         let imageURL = FileManager.default.temporaryDirectory
@@ -39,8 +39,30 @@ final class PasteServiceTests: XCTestCase {
 
         try service.copy(.image(imagePath: imageURL.path, thumbnailPath: "/tmp/thumb.png"))
 
-        XCTAssertEqual(pasteboard.writtenImagePayload?.data, imageData)
-        XCTAssertEqual(pasteboard.writtenImagePayload?.pasteboardType, .png)
+        let archive = try XCTUnwrap(pasteboard.writtenImageArchive)
+        XCTAssertEqual(archive.items.count, 1)
+        XCTAssertEqual(archive.items[0].count, 1)
+        XCTAssertEqual(archive.items[0][0].data, imageData)
+        XCTAssertEqual(archive.items[0][0].pasteboardType, .png)
+        XCTAssertNil(pasteboard.writtenText)
+    }
+
+    func testCopyImageRestoresArchiveManifest() throws {
+        let pasteboard = FakePasteboardWriter()
+        let service = PasteService(pasteboard: pasteboard, pasteEventSender: FakePasteEventSender())
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension(ClipboardImageArchive.fileExtension)
+        let imageData = try XCTUnwrap(makeTestImage().pngData)
+        let archive = ClipboardImageArchive(items: [[
+            ClipboardImagePayload(data: imageData, pasteboardType: .png)
+        ]])
+        try archive.write(to: imageURL)
+        defer { try? FileManager.default.removeItem(at: imageURL) }
+
+        try service.copy(.image(imagePath: imageURL.path, thumbnailPath: "/tmp/thumb.png"))
+
+        XCTAssertEqual(pasteboard.writtenImageArchive, archive)
         XCTAssertNil(pasteboard.writtenText)
     }
 
@@ -49,7 +71,9 @@ final class PasteServiceTests: XCTestCase {
         let writer = SystemPasteboardWriter(pasteboard: pasteboard)
 
         let imageData = try XCTUnwrap(makeTestImage().pngData)
-        try writer.writeImage(ClipboardImagePayload(data: imageData, pasteboardType: .png))
+        try writer.writeImageArchive(ClipboardImageArchive(items: [[
+            ClipboardImagePayload(data: imageData, pasteboardType: .png)
+        ]]))
 
         XCTAssertEqual(
             pasteboard.string(forType: ClipboardPasteboardMarker.type),
@@ -57,33 +81,72 @@ final class PasteServiceTests: XCTestCase {
         )
     }
 
-    func testSystemPasteboardWriterPublishesOriginalImageDataAndFallbacks() throws {
+    func testSystemPasteboardWriterRestoresArchiveItemsWithAllImageTypes() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let writer = SystemPasteboardWriter(pasteboard: pasteboard)
+        let pngData = try XCTUnwrap(makeTestImage().pngData)
+        let tiffData = try XCTUnwrap(makeTestImage().tiffRepresentation)
         let jpegData = try XCTUnwrap(makeTestImage().jpegData)
         let jpegType = NSPasteboard.PasteboardType("public.jpeg")
+        let archive = ClipboardImageArchive(items: [
+            [
+                ClipboardImagePayload(data: pngData, pasteboardType: .png),
+                ClipboardImagePayload(data: tiffData, pasteboardType: .tiff)
+            ],
+            [
+                ClipboardImagePayload(data: jpegData, pasteboardType: jpegType)
+            ]
+        ])
 
-        try writer.writeImage(ClipboardImagePayload(data: jpegData, pasteboardType: jpegType))
+        try writer.writeImageArchive(archive)
 
-        XCTAssertEqual(pasteboard.data(forType: jpegType), jpegData)
-        XCTAssertNotNil(pasteboard.data(forType: .png))
-        XCTAssertNotNil(pasteboard.data(forType: .tiff))
+        let items = try XCTUnwrap(pasteboard.pasteboardItems)
+        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(items[0].data(forType: .png), pngData)
+        XCTAssertEqual(items[0].data(forType: .tiff), tiffData)
+        XCTAssertEqual(items[1].data(forType: jpegType), jpegData)
         XCTAssertEqual(
             pasteboard.string(forType: ClipboardPasteboardMarker.type),
             ClipboardPasteboardMarker.value
         )
     }
 
-    func testSystemPasteboardReaderReadsPngImagePayload() throws {
+    func testSystemPasteboardReaderReadsPngImageArchive() throws {
         let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
         let imageData = try XCTUnwrap(makeTestImage().pngData)
         pasteboard.declareTypes([.png], owner: nil)
         pasteboard.setData(imageData, forType: .png)
         let reader = SystemPasteboardReader(pasteboard: pasteboard)
-        let payload = try XCTUnwrap(reader.readImagePayload())
+        let archive = try XCTUnwrap(reader.readImageArchive())
 
-        XCTAssertEqual(payload.data, imageData)
-        XCTAssertEqual(payload.pasteboardType, .png)
+        XCTAssertEqual(archive.items.count, 1)
+        XCTAssertEqual(archive.items[0].count, 1)
+        XCTAssertEqual(archive.items[0][0].data, imageData)
+        XCTAssertEqual(archive.items[0][0].pasteboardType, .png)
+    }
+
+    func testSystemPasteboardReaderPreservesImageItemsAndIgnoresNonImageTypes() throws {
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        let pngData = try XCTUnwrap(makeTestImage().pngData)
+        let tiffData = try XCTUnwrap(makeTestImage().tiffRepresentation)
+        let jpegData = try XCTUnwrap(makeTestImage().jpegData)
+        let jpegType = NSPasteboard.PasteboardType("public.jpeg")
+        let firstItem = NSPasteboardItem()
+        firstItem.setString("caption", forType: .string)
+        firstItem.setData(pngData, forType: .png)
+        firstItem.setData(tiffData, forType: .tiff)
+        let secondItem = NSPasteboardItem()
+        secondItem.setData(jpegData, forType: jpegType)
+        pasteboard.clearContents()
+        XCTAssertTrue(pasteboard.writeObjects([firstItem, secondItem]))
+        let reader = SystemPasteboardReader(pasteboard: pasteboard)
+
+        let archive = try XCTUnwrap(reader.readImageArchive())
+
+        XCTAssertEqual(archive.items.count, 2)
+        XCTAssertEqual(Set(archive.items[0].map(\.pasteboardType)), Set([.png, .tiff]))
+        XCTAssertEqual(Set(archive.items[0].map(\.data)), Set([pngData, tiffData]))
+        XCTAssertEqual(archive.items[1], [ClipboardImagePayload(data: jpegData, pasteboardType: jpegType)])
     }
 
     func testSystemPasteboardReaderIgnoresImageFileURL() throws {
@@ -97,7 +160,7 @@ final class PasteServiceTests: XCTestCase {
         pasteboard.writeObjects([imageURL as NSURL])
         let reader = SystemPasteboardReader(pasteboard: pasteboard)
 
-        XCTAssertNil(reader.readImagePayload())
+        XCTAssertNil(reader.readImageArchive())
     }
 
     func testCopyAndPasteCopiesThenSendsPasteCommand() throws {
@@ -174,7 +237,7 @@ final class PasteServiceTests: XCTestCase {
 private final class FakePasteboardWriter: PasteboardWriting {
     private let recorder: CallRecorder?
     private(set) var writtenText: String?
-    private(set) var writtenImagePayload: ClipboardImagePayload?
+    private(set) var writtenImageArchive: ClipboardImageArchive?
 
     init(recorder: CallRecorder? = nil) {
         self.recorder = recorder
@@ -185,8 +248,8 @@ private final class FakePasteboardWriter: PasteboardWriting {
         recorder?.record("writeText:\(text)")
     }
 
-    func writeImage(_ payload: ClipboardImagePayload) throws {
-        writtenImagePayload = payload
+    func writeImageArchive(_ archive: ClipboardImageArchive) throws {
+        writtenImageArchive = archive
         recorder?.record("writeImage")
     }
 }

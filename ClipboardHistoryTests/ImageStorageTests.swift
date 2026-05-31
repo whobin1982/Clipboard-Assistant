@@ -19,17 +19,21 @@ final class ImageStorageTests: XCTestCase {
         try super.tearDownWithError()
     }
 
-    func testSaveWritesOriginalThumbnailAndReportsUsage() throws {
+    func testSaveWritesArchiveThumbnailAndReportsUsage() throws {
         let storage = try ImageStorage(directory: temporaryDirectory)
         let imageData = try XCTUnwrap(makeImage(size: NSSize(width: 100, height: 100)).pngData)
-        let payload = ClipboardImagePayload(data: imageData, pasteboardType: .png)
+        let archive = ClipboardImageArchive(items: [[
+            ClipboardImagePayload(data: imageData, pasteboardType: .png),
+            ClipboardImagePayload(data: try XCTUnwrap(makeImage(size: NSSize(width: 100, height: 100)).tiffRepresentation), pasteboardType: .tiff)
+        ]])
 
-        let paths = try storage.save(payload, id: UUID())
+        let paths = try storage.save(archive, id: UUID())
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.imagePath))
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.thumbnailPath))
-        XCTAssertEqual(URL(fileURLWithPath: paths.imagePath).pathExtension, "png")
-        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: paths.imagePath)), imageData)
+        XCTAssertEqual(URL(fileURLWithPath: paths.imagePath).pathExtension, ClipboardImageArchive.fileExtension)
+        let savedArchive = try ClipboardImageArchive.load(from: URL(fileURLWithPath: paths.imagePath))
+        XCTAssertEqual(savedArchive, archive)
         XCTAssertNotNil(NSImage(contentsOfFile: paths.thumbnailPath))
         XCTAssertGreaterThan(storage.storageUsageBytes(), 0)
     }

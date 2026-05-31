@@ -9,14 +9,14 @@ final class ImageStorage {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
-    func save(_ payload: ClipboardImagePayload, id: UUID) throws -> (imagePath: String, thumbnailPath: String) {
-        guard let image = payload.image else {
+    func save(_ archive: ClipboardImageArchive, id: UUID) throws -> (imagePath: String, thumbnailPath: String) {
+        guard let image = archive.firstImage else {
             throw CocoaError(.fileReadCorruptFile)
         }
 
-        let imageURL = directory.appendingPathComponent("\(id.uuidString).\(payload.fileExtension)")
+        let imageURL = directory.appendingPathComponent("\(id.uuidString).\(ClipboardImageArchive.fileExtension)")
         let thumbnailURL = directory.appendingPathComponent("\(id.uuidString)-thumb.png")
-        try payload.data.write(to: imageURL, options: .atomic)
+        try archive.write(to: imageURL)
         try writePNG(thumbnail(from: image), to: thumbnailURL)
         return (imageURL.path, thumbnailURL.path)
     }

@@ -4,7 +4,7 @@ import Foundation
 
 protocol PasteboardWriting {
     func writeText(_ text: String) throws
-    func writeImage(_ payload: ClipboardImagePayload) throws
+    func writeImageArchive(_ archive: ClipboardImageArchive) throws
 }
 
 enum ClipboardPasteboardMarker {
@@ -66,20 +66,13 @@ final class PasteService {
                 throw PasteServiceError.missingImagePath
             }
             let imageURL = URL(fileURLWithPath: imagePath)
-            let imageData: Data
+            let archive: ClipboardImageArchive
             do {
-                imageData = try Data(contentsOf: imageURL)
+                archive = try Self.imageArchive(from: imageURL)
             } catch {
                 throw PasteServiceError.unreadableImage(imagePath)
             }
-            let payload = ClipboardImagePayload(
-                data: imageData,
-                pasteboardType: ClipboardImagePayload.pasteboardType(forFileExtension: imageURL.pathExtension)
-            )
-            guard payload.image != nil else {
-                throw PasteServiceError.unreadableImage(imagePath)
-            }
-            try pasteboard.writeImage(payload)
+            try pasteboard.writeImageArchive(archive)
         }
     }
 
@@ -90,6 +83,26 @@ final class PasteService {
 
     func sendPasteCommand() throws {
         try pasteEventSender.sendPasteCommand()
+    }
+
+    private static func imageArchive(from imageURL: URL) throws -> ClipboardImageArchive {
+        if imageURL.pathExtension == ClipboardImageArchive.fileExtension {
+            let archive = try ClipboardImageArchive.load(from: imageURL)
+            guard archive.firstImage != nil else {
+                throw PasteServiceError.unreadableImage(imageURL.path)
+            }
+            return archive
+        }
+
+        let imageData = try Data(contentsOf: imageURL)
+        let payload = ClipboardImagePayload(
+            data: imageData,
+            pasteboardType: ClipboardImagePayload.pasteboardType(forFileExtension: imageURL.pathExtension)
+        )
+        guard payload.image != nil else {
+            throw PasteServiceError.unreadableImage(imageURL.path)
+        }
+        return ClipboardImageArchive.single(payload)
     }
 }
 
@@ -124,52 +137,35 @@ final class SystemPasteboardWriter: PasteboardWriting {
         }
     }
 
-    func writeImage(_ payload: ClipboardImagePayload) throws {
+    func writeImageArchive(_ archive: ClipboardImageArchive) throws {
+        var items: [NSPasteboardItem] = []
+        for archiveItem in archive.items {
+            let item = NSPasteboardItem()
+            var didWriteImage = false
+            for payload in archiveItem {
+                guard payload.image != nil else { continue }
+                guard item.setData(payload.data, forType: payload.pasteboardType) else {
+                    throw PasteServiceError.pasteboardWriteFailed
+                }
+                didWriteImage = true
+            }
+            guard didWriteImage else { continue }
+            if items.isEmpty {
+                guard item.setString(ClipboardPasteboardMarker.value, forType: ClipboardPasteboardMarker.type) else {
+                    throw PasteServiceError.pasteboardWriteFailed
+                }
+            }
+            items.append(item)
+        }
+
+        guard !items.isEmpty else {
+            throw PasteServiceError.pasteboardWriteFailed
+        }
+
         pasteboard.clearContents()
-        let types = Self.uniqueTypes([
-            payload.pasteboardType,
-            .png,
-            .tiff,
-            ClipboardPasteboardMarker.type
-        ])
-        pasteboard.declareTypes(types, owner: nil)
-        guard let image = payload.image else {
+        guard pasteboard.writeObjects(items) else {
             throw PasteServiceError.pasteboardWriteFailed
         }
-        let fallbackData = try Self.imagePasteboardData(from: image)
-        guard pasteboard.setData(payload.data, forType: payload.pasteboardType) else {
-            throw PasteServiceError.pasteboardWriteFailed
-        }
-        if payload.pasteboardType != .png,
-           !pasteboard.setData(fallbackData.png, forType: .png) {
-            throw PasteServiceError.pasteboardWriteFailed
-        }
-        if payload.pasteboardType != .tiff,
-           !pasteboard.setData(fallbackData.tiff, forType: .tiff) {
-            throw PasteServiceError.pasteboardWriteFailed
-        }
-        guard pasteboard.setString(ClipboardPasteboardMarker.value, forType: ClipboardPasteboardMarker.type) else {
-            throw PasteServiceError.pasteboardWriteFailed
-        }
-    }
-
-    private static func uniqueTypes(_ types: [NSPasteboard.PasteboardType]) -> [NSPasteboard.PasteboardType] {
-        var seen: Set<String> = []
-        return types.filter { type in
-            seen.insert(type.rawValue).inserted
-        }
-    }
-
-    private static func imagePasteboardData(from image: NSImage) throws -> (png: Data, tiff: Data) {
-        guard
-            let tiff = image.tiffRepresentation,
-            let bitmap = NSBitmapImageRep(data: tiff),
-            let png = bitmap.representation(using: .png, properties: [:])
-        else {
-            throw PasteServiceError.pasteboardWriteFailed
-        }
-
-        return (png, tiff)
     }
 }
 

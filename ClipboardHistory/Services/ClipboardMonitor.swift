@@ -4,12 +4,12 @@ import Foundation
 protocol PasteboardReading {
     var changeCount: Int { get }
     func readString() -> String?
-    func readImagePayload() -> ClipboardImagePayload?
+    func readImageArchive() -> ClipboardImageArchive?
     func wasWrittenByClipboardHistory() -> Bool
 }
 
 protocol ImageStoring {
-    func save(_ payload: ClipboardImagePayload, id: UUID) throws -> (imagePath: String, thumbnailPath: String)
+    func save(_ archive: ClipboardImageArchive, id: UUID) throws -> (imagePath: String, thumbnailPath: String)
 }
 
 extension ImageStorage: ImageStoring {}
@@ -18,9 +18,14 @@ extension Notification.Name {
     static let clipboardHistoryDidChange = Notification.Name("ClipboardHistoryDidChange")
 }
 
-struct ClipboardImagePayload: Equatable {
+struct ClipboardImagePayload: Equatable, Codable {
     let data: Data
     let pasteboardType: NSPasteboard.PasteboardType
+
+    private enum CodingKeys: String, CodingKey {
+        case data
+        case pasteboardType
+    }
 
     var image: NSImage? {
         NSImage(data: data)
@@ -49,6 +54,24 @@ struct ClipboardImagePayload: Equatable {
         }
     }
 
+    init(data: Data, pasteboardType: NSPasteboard.PasteboardType) {
+        self.data = data
+        self.pasteboardType = pasteboardType
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        data = try container.decode(Data.self, forKey: .data)
+        let pasteboardTypeRawValue = try container.decode(String.self, forKey: .pasteboardType)
+        pasteboardType = NSPasteboard.PasteboardType(pasteboardTypeRawValue)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(data, forKey: .data)
+        try container.encode(pasteboardType.rawValue, forKey: .pasteboardType)
+    }
+
     private static func fileExtension(for pasteboardType: NSPasteboard.PasteboardType) -> String {
         switch pasteboardType {
         case .png:
@@ -69,6 +92,43 @@ struct ClipboardImagePayload: Equatable {
     }
 }
 
+struct ClipboardImageArchive: Equatable, Codable {
+    static let fileExtension = "clipboardimage"
+
+    let items: [[ClipboardImagePayload]]
+
+    var firstImage: NSImage? {
+        firstPayload?.image
+    }
+
+    private var firstPayload: ClipboardImagePayload? {
+        for item in items {
+            if let payload = item.first {
+                return payload
+            }
+        }
+        return nil
+    }
+
+    init(items: [[ClipboardImagePayload]]) {
+        self.items = items
+    }
+
+    static func single(_ payload: ClipboardImagePayload) -> ClipboardImageArchive {
+        ClipboardImageArchive(items: [[payload]])
+    }
+
+    static func load(from url: URL) throws -> ClipboardImageArchive {
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(ClipboardImageArchive.self, from: data)
+    }
+
+    func write(to url: URL) throws {
+        let data = try JSONEncoder().encode(self)
+        try data.write(to: url, options: .atomic)
+    }
+}
+
 final class SystemPasteboardReader: PasteboardReading {
     private static let directImageTypes: [NSPasteboard.PasteboardType] = [
         .png,
@@ -78,6 +138,7 @@ final class SystemPasteboardReader: PasteboardReading {
         NSPasteboard.PasteboardType("public.heif"),
         NSPasteboard.PasteboardType("com.compuserve.gif")
     ]
+    private static let directImageTypeSet = Set(directImageTypes)
 
     private let pasteboard: NSPasteboard
 
@@ -93,7 +154,33 @@ final class SystemPasteboardReader: PasteboardReading {
         pasteboard.string(forType: .string)
     }
 
-    func readImagePayload() -> ClipboardImagePayload? {
+    func readImageArchive() -> ClipboardImageArchive? {
+        let imageItems = pasteboard.pasteboardItems?.compactMap { item -> [ClipboardImagePayload]? in
+            let payloads = item.types.compactMap { type -> ClipboardImagePayload? in
+                guard
+                    Self.directImageTypeSet.contains(type),
+                    let imageData = item.data(forType: type),
+                    NSImage(data: imageData) != nil
+                else {
+                    return nil
+                }
+                return ClipboardImagePayload(data: imageData, pasteboardType: type)
+            }
+            return payloads.isEmpty ? nil : payloads
+        }
+
+        if let imageItems, !imageItems.isEmpty {
+            return ClipboardImageArchive(items: imageItems)
+        }
+
+        return readSingleImagePayload().map(ClipboardImageArchive.single)
+    }
+
+    func wasWrittenByClipboardHistory() -> Bool {
+        pasteboard.string(forType: ClipboardPasteboardMarker.type) == ClipboardPasteboardMarker.value
+    }
+
+    private func readSingleImagePayload() -> ClipboardImagePayload? {
         for type in Self.directImageTypes {
             guard
                 let imageData = pasteboard.data(forType: type),
@@ -104,10 +191,6 @@ final class SystemPasteboardReader: PasteboardReading {
             return ClipboardImagePayload(data: imageData, pasteboardType: type)
         }
         return nil
-    }
-
-    func wasWrittenByClipboardHistory() -> Bool {
-        pasteboard.string(forType: ClipboardPasteboardMarker.type) == ClipboardPasteboardMarker.value
     }
 }
 
@@ -167,8 +250,8 @@ final class ClipboardMonitor {
             return
         }
 
-        if let imagePayload = pasteboard.readImagePayload() {
-            recordImage(imagePayload, changeCount: currentChangeCount)
+        if let imageArchive = pasteboard.readImageArchive() {
+            recordImage(imageArchive, changeCount: currentChangeCount)
             return
         }
 
@@ -196,11 +279,11 @@ final class ClipboardMonitor {
         NotificationCenter.default.post(name: .clipboardHistoryDidChange, object: self)
     }
 
-    private func recordImage(_ imagePayload: ClipboardImagePayload, changeCount: Int) {
+    private func recordImage(_ imageArchive: ClipboardImageArchive, changeCount: Int) {
         let id = UUID()
         let paths: (imagePath: String, thumbnailPath: String)
         do {
-            paths = try imageStorage.save(imagePayload, id: id)
+            paths = try imageStorage.save(imageArchive, id: id)
         } catch {
             // Image encoding/storage failures are intentionally skipped so later
             // pasteboard changes can still be recorded.

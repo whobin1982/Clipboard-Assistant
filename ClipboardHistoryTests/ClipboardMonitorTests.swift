@@ -136,7 +136,7 @@ final class ClipboardMonitorTests: XCTestCase {
         pasteboard.isMarkedByClipboardHistory = false
         monitor.pollOnce()
 
-        XCTAssertTrue(imageStorage.savedPayloads.isEmpty)
+        XCTAssertTrue(imageStorage.savedArchives.isEmpty)
         XCTAssertTrue(store.insertedItems.isEmpty)
     }
 
@@ -175,7 +175,7 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertNil(store.insertedItems[0].text)
         XCTAssertEqual(store.insertedItems[0].imagePath, "/tmp/copied-image.png")
         XCTAssertEqual(store.insertedItems[0].thumbnailPath, "/tmp/copied-image-thumb.png")
-        XCTAssertEqual(imageStorage.savedPayloads.count, 1)
+        XCTAssertEqual(imageStorage.savedArchives.count, 1)
     }
 
     func testImagePasteboardSavesImageAndInsertsImageClipboardItemWithReturnedPaths() throws {
@@ -193,9 +193,11 @@ final class ClipboardMonitorTests: XCTestCase {
         pasteboard.changeCount = 2
         monitor.pollOnce()
 
-        XCTAssertEqual(imageStorage.savedPayloads.count, 1)
-        XCTAssertEqual(imageStorage.savedPayloads[0].data, try XCTUnwrap(image.pngData))
-        XCTAssertEqual(imageStorage.savedPayloads[0].pasteboardType, .png)
+        XCTAssertEqual(imageStorage.savedArchives.count, 1)
+        XCTAssertEqual(imageStorage.savedArchives[0].items.count, 1)
+        XCTAssertEqual(imageStorage.savedArchives[0].items[0].count, 1)
+        XCTAssertEqual(imageStorage.savedArchives[0].items[0][0].data, try XCTUnwrap(image.pngData))
+        XCTAssertEqual(imageStorage.savedArchives[0].items[0][0].pasteboardType, .png)
         XCTAssertEqual(store.insertedItems.count, 1)
         XCTAssertEqual(store.insertedItems[0].kind, .image)
         XCTAssertEqual(store.insertedItems[0].imagePath, "/tmp/image.png")
@@ -215,15 +217,15 @@ final class ClipboardMonitorTests: XCTestCase {
 
         pasteboard.changeCount = 2
         monitor.pollOnce()
-        XCTAssertEqual(imageStorage.savedPayloads.count, 1)
+        XCTAssertEqual(imageStorage.savedArchives.count, 1)
         XCTAssertTrue(monitor.lastError is CocoaError)
 
         monitor.pollOnce()
-        XCTAssertEqual(imageStorage.savedPayloads.count, 1)
+        XCTAssertEqual(imageStorage.savedArchives.count, 1)
 
         pasteboard.changeCount = 3
         pasteboard.string = "recovered"
-        pasteboard.imagePayload = nil
+        pasteboard.imageArchive = nil
         imageStorage.error = nil
         monitor.pollOnce()
 
@@ -275,7 +277,7 @@ final class ClipboardMonitorTests: XCTestCase {
         monitor.pollOnce()
 
         XCTAssertNil(monitor.lastError)
-        XCTAssertEqual(imageStorage.savedPayloads.count, 2)
+        XCTAssertEqual(imageStorage.savedArchives.count, 2)
         XCTAssertEqual(store.insertedItems.count, 1)
         XCTAssertEqual(store.insertedItems[0].kind, .image)
         XCTAssertEqual(store.insertedItems[0].imagePath, "/tmp/retry.png")
@@ -295,7 +297,7 @@ final class ClipboardMonitorTests: XCTestCase {
 private final class FakePasteboard: PasteboardReading {
     var changeCount: Int
     var string: String?
-    var imagePayload: ClipboardImagePayload?
+    var imageArchive: ClipboardImageArchive?
     var isMarkedByClipboardHistory: Bool
 
     init(
@@ -306,8 +308,10 @@ private final class FakePasteboard: PasteboardReading {
     ) {
         self.changeCount = changeCount
         self.string = string
-        self.imagePayload = image.flatMap { image in
-            image.pngData.map { ClipboardImagePayload(data: $0, pasteboardType: .png) }
+        self.imageArchive = image.flatMap { image in
+            image.pngData.map {
+                ClipboardImageArchive(items: [[ClipboardImagePayload(data: $0, pasteboardType: .png)]])
+            }
         }
         self.isMarkedByClipboardHistory = isMarkedByClipboardHistory
     }
@@ -316,8 +320,8 @@ private final class FakePasteboard: PasteboardReading {
         string
     }
 
-    func readImagePayload() -> ClipboardImagePayload? {
-        imagePayload
+    func readImageArchive() -> ClipboardImageArchive? {
+        imageArchive
     }
 
     func wasWrittenByClipboardHistory() -> Bool {
@@ -328,15 +332,15 @@ private final class FakePasteboard: PasteboardReading {
 private final class FakeImageStorage: ImageStoring {
     private let result: (imagePath: String, thumbnailPath: String)
     var error: Error?
-    private(set) var savedPayloads: [ClipboardImagePayload] = []
+    private(set) var savedArchives: [ClipboardImageArchive] = []
 
     init(result: (imagePath: String, thumbnailPath: String) = ("/tmp/default.png", "/tmp/default-thumb.png"), error: Error? = nil) {
         self.result = result
         self.error = error
     }
 
-    func save(_ payload: ClipboardImagePayload, id: UUID) throws -> (imagePath: String, thumbnailPath: String) {
-        savedPayloads.append(payload)
+    func save(_ archive: ClipboardImageArchive, id: UUID) throws -> (imagePath: String, thumbnailPath: String) {
+        savedArchives.append(archive)
         if let error {
             throw error
         }

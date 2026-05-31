@@ -266,7 +266,7 @@ final class AppEnvironmentTests: XCTestCase {
         try XCTUnwrap(presenter.onPaste)(item)
 
         await fulfillment(of: [pasteSent], timeout: 1)
-        XCTAssertNotNil(pasteboard.writtenImagePayload)
+        XCTAssertNotNil(pasteboard.writtenImageArchive)
         XCTAssertNil(environment.lastErrorMessage)
         XCTAssertEqual(
             recorder.calls,
@@ -928,7 +928,7 @@ private final class AppEnvironmentFakeSettingsWindowPresenter: SettingsWindowPre
 private final class AppEnvironmentFakePasteboardWriter: PasteboardWriting {
     private let recorder: AppEnvironmentCallRecorder
     private(set) var writtenText: String?
-    private(set) var writtenImagePayload: ClipboardImagePayload?
+    private(set) var writtenImageArchive: ClipboardImageArchive?
 
     init(recorder: AppEnvironmentCallRecorder) {
         self.recorder = recorder
@@ -939,8 +939,8 @@ private final class AppEnvironmentFakePasteboardWriter: PasteboardWriting {
         recorder.record("writeText:\(text)")
     }
 
-    func writeImage(_ payload: ClipboardImagePayload) throws {
-        writtenImagePayload = payload
+    func writeImageArchive(_ archive: ClipboardImageArchive) throws {
+        writtenImageArchive = archive
         recorder.record("writeImage")
     }
 }
