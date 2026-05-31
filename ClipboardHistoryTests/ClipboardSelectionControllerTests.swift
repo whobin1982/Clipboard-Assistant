@@ -141,6 +141,30 @@ final class ClipboardSelectionControllerTests: XCTestCase {
         XCTAssertEqual(shortcutItems.map(\.id), [firstVisible.id, secondVisible.id, thirdVisible.id])
     }
 
+    /// 滚动偏移变化后，快捷编号应使用内容坐标减去滚动位置重新计算当前可见行。
+    func testVisibleShortcutResolverMovesShortcutWindowWithScrollOffset() {
+        let items = (1...12).map { ClipboardItem.text("item \($0)") }
+        let frames = items.enumerated().map { index, item in
+            ClipboardVisibleRowFrame(
+                id: item.id,
+                minY: CGFloat(index * 48),
+                maxY: CGFloat(index * 48 + 44)
+            )
+        }
+
+        let visibleIDs = ClipboardVisibleShortcutResolver.visibleIDs(
+            rowFrames: frames,
+            scrollOffsetY: 144,
+            viewportHeight: 120,
+            itemIDs: items.map(\.id)
+        )
+        let shortcutItems = ClipboardVisibleShortcutResolver.shortcutItems(visibleIDs: visibleIDs, items: items)
+
+        let expectedIDs = items[3...5].map { $0.id }
+        XCTAssertEqual(visibleIDs, expectedIDs)
+        XCTAssertEqual(shortcutItems.map(\.id), expectedIDs)
+    }
+
     /// 视图刚打开、还没收到滚动位置信息时，快捷选择先退回当前列表前 9 条。
     func testVisibleShortcutResolverFallsBackBeforeGeometryUpdates() {
         let items = (1...12).map { ClipboardItem.text("item \($0)") }
@@ -148,5 +172,18 @@ final class ClipboardSelectionControllerTests: XCTestCase {
         let shortcutItems = ClipboardVisibleShortcutResolver.shortcutItems(visibleIDs: [], items: items)
 
         XCTAssertEqual(shortcutItems.map(\.id), items.prefix(9).map(\.id))
+    }
+
+    /// 已经知道滚动视口后，如果暂时没有可见行数据，不应退回列表最前面的 9 条。
+    func testVisibleShortcutResolverCanDisableFallbackAfterViewportIsKnown() {
+        let items = (1...12).map { ClipboardItem.text("item \($0)") }
+
+        let shortcutItems = ClipboardVisibleShortcutResolver.shortcutItems(
+            visibleIDs: [],
+            items: items,
+            allowsFallback: false
+        )
+
+        XCTAssertTrue(shortcutItems.isEmpty)
     }
 }

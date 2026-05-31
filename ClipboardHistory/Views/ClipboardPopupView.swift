@@ -8,10 +8,10 @@ struct ClipboardPopupView: View {
     @StateObject private var selectionController = ClipboardSelectionController()
     @State private var clearConfirmation: ClipboardClearConfirmation?
     @State private var visibleRowFrames: [ClipboardVisibleRowFrame] = []
+    @State private var scrollOffsetY: CGFloat = 0
     @State private var listViewportHeight: CGFloat = 0
-    @State private var visibleShortcutItemIDs: [UUID] = []
 
-    private static let historyListCoordinateSpace = "clipboardHistoryList"
+    private static let historyListContentCoordinateSpace = "clipboardHistoryListContent"
 
     var escapeClosesWindow: Bool
     @Binding var isRecordingPaused: Bool
@@ -26,6 +26,13 @@ struct ClipboardPopupView: View {
     /// 弹窗内容布局：顶部操作栏，中间错误或空状态，底部历史列表。
     var body: some View {
         let visibleItems = viewModel.filteredItems
+        let visibleShortcutItemIDs = ClipboardVisibleShortcutResolver.visibleIDs(
+            rowFrames: visibleRowFrames,
+            scrollOffsetY: scrollOffsetY,
+            viewportHeight: listViewportHeight,
+            itemIDs: visibleItems.map(\.id)
+        )
+        let allowsInitialShortcutFallback = listViewportHeight <= 0
 
         VStack(alignment: .leading, spacing: 10) {
             KeyEventHandlingView(
@@ -48,7 +55,8 @@ struct ClipboardPopupView: View {
                 onNumberShortcut: { number in
                     let shortcutItems = ClipboardVisibleShortcutResolver.shortcutItems(
                         visibleIDs: visibleShortcutItemIDs,
-                        items: visibleItems
+                        items: visibleItems,
+                        allowsFallback: allowsInitialShortcutFallback
                     )
                     guard let item = selectionController.selectNumberShortcut(number, in: shortcutItems) else { return }
                     onPaste(item)
@@ -127,7 +135,12 @@ struct ClipboardPopupView: View {
                         ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
                             ClipboardRowView(
                                 item: item,
-                                shortcutNumber: shortcutNumber(for: item.id, fallbackIndex: index),
+                                shortcutNumber: shortcutNumber(
+                                    for: item.id,
+                                    visibleShortcutItemIDs: visibleShortcutItemIDs,
+                                    allowsFallback: allowsInitialShortcutFallback,
+                                    fallbackIndex: index
+                                ),
                                 isSelected: selectionController.selectedItemID == item.id,
                                 onFavorite: { viewModel.toggleFavorite(item) },
                                 onDelete: { onDelete(item) },
@@ -138,7 +151,7 @@ struct ClipboardPopupView: View {
                             .background(
                                 ClipboardVisibleRowReporter(
                                     itemID: item.id,
-                                    coordinateSpaceName: Self.historyListCoordinateSpace
+                                    coordinateSpaceName: Self.historyListContentCoordinateSpace
                                 )
                             )
 
@@ -147,17 +160,14 @@ struct ClipboardPopupView: View {
                             }
                         }
                     }
+                    .coordinateSpace(name: Self.historyListContentCoordinateSpace)
+                    .background(
+                        ClipboardScrollPositionObserver { offsetY, viewportHeight in
+                            updateScrollPosition(offsetY: offsetY, viewportHeight: viewportHeight)
+                        }
+                    )
                 }
                 .frame(minHeight: 180)
-                .coordinateSpace(name: Self.historyListCoordinateSpace)
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: ClipboardListViewportHeightPreferenceKey.self,
-                            value: proxy.size.height
-                        )
-                    }
-                )
             }
         }
         .padding(12)
@@ -185,15 +195,9 @@ struct ClipboardPopupView: View {
         }
         .onChange(of: viewModel.filteredItems.map(\.id)) { _, _ in
             selectionController.reconcileSelection(with: viewModel.filteredItems)
-            refreshVisibleShortcutItems(for: viewModel.filteredItems)
         }
         .onPreferenceChange(ClipboardVisibleRowFramesPreferenceKey.self) { frames in
             visibleRowFrames = frames
-            refreshVisibleShortcutItems(for: visibleItems)
-        }
-        .onPreferenceChange(ClipboardListViewportHeightPreferenceKey.self) { height in
-            listViewportHeight = height
-            refreshVisibleShortcutItems(for: visibleItems)
         }
     }
 
@@ -206,22 +210,32 @@ struct ClipboardPopupView: View {
     }
 
     /// 根据当前滚动位置为可见记录分配快捷键编号。
-    private func shortcutNumber(for itemID: UUID, fallbackIndex: Int) -> Int? {
+    private func shortcutNumber(
+        for itemID: UUID,
+        visibleShortcutItemIDs: [UUID],
+        allowsFallback: Bool,
+        fallbackIndex: Int
+    ) -> Int? {
         if let visibleIndex = visibleShortcutItemIDs.firstIndex(of: itemID) {
             return visibleIndex + 1
         }
 
-        guard visibleShortcutItemIDs.isEmpty, fallbackIndex < 9 else { return nil }
+        guard allowsFallback, visibleShortcutItemIDs.isEmpty, fallbackIndex < 9 else { return nil }
         return fallbackIndex + 1
     }
 
-    /// 滚动、窗口大小或列表内容变化时刷新可用的快捷选择记录。
-    private func refreshVisibleShortcutItems(for items: [ClipboardItem]) {
-        visibleShortcutItemIDs = ClipboardVisibleShortcutResolver.visibleIDs(
-            rowFrames: visibleRowFrames,
-            viewportHeight: listViewportHeight,
-            itemIDs: items.map(\.id)
-        )
+    /// 接收原生滚动视图的真实滚动位置，避免 SwiftUI 布局偏好在 macOS 滚动时不刷新的问题。
+    private func updateScrollPosition(offsetY: CGFloat, viewportHeight: CGFloat) {
+        let normalizedOffsetY = max(0, offsetY)
+        guard
+            abs(scrollOffsetY - normalizedOffsetY) > 0.5 ||
+            abs(listViewportHeight - viewportHeight) > 0.5
+        else {
+            return
+        }
+
+        scrollOffsetY = normalizedOffsetY
+        listViewportHeight = viewportHeight
     }
 }
 
@@ -263,6 +277,104 @@ private struct ClipboardVisibleRowReporter: View {
                 ]
             )
         }
+    }
+}
+
+/// 观察 SwiftUI ScrollView 底层 NSScrollView 的滚动位置，让快捷编号能跟随真实滚动偏移更新。
+private struct ClipboardScrollPositionObserver: NSViewRepresentable {
+    let onScrollChange: (CGFloat, CGFloat) -> Void
+
+    func makeNSView(context _: Context) -> ClipboardScrollPositionObserverView {
+        let view = ClipboardScrollPositionObserverView()
+        view.onScrollChange = onScrollChange
+        return view
+    }
+
+    func updateNSView(_ nsView: ClipboardScrollPositionObserverView, context _: Context) {
+        nsView.onScrollChange = onScrollChange
+        DispatchQueue.main.async {
+            nsView.attachToEnclosingScrollView()
+        }
+    }
+
+    static func dismantleNSView(_ nsView: ClipboardScrollPositionObserverView, coordinator _: ()) {
+        nsView.stopObserving()
+    }
+}
+
+/// 放在滚动内容里的透明 NSView，负责监听 NSClipView 的 bounds 改变。
+private final class ClipboardScrollPositionObserverView: NSView {
+    var onScrollChange: (CGFloat, CGFloat) -> Void = { _, _ in }
+
+    private weak var observedScrollView: NSScrollView?
+    private var boundsObserver: NSObjectProtocol?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        DispatchQueue.main.async { [weak self] in
+            self?.attachToEnclosingScrollView()
+        }
+    }
+
+    deinit {
+        stopObserving()
+    }
+
+    /// 找到 SwiftUI ScrollView 创建的 NSScrollView，并监听其可见区域变化。
+    func attachToEnclosingScrollView() {
+        guard let scrollView = enclosingScrollView ?? firstAncestor(of: NSScrollView.self) else { return }
+
+        if observedScrollView === scrollView {
+            reportScrollPosition()
+            return
+        }
+
+        stopObserving()
+        observedScrollView = scrollView
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        boundsObserver = NotificationCenter.default.addObserver(
+            forName: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView,
+            queue: .main
+        ) { [weak self] _ in
+            self?.reportScrollPosition()
+        }
+        reportScrollPosition()
+    }
+
+    /// 停止监听旧的滚动视图，避免窗口重建后继续收到过期通知。
+    func stopObserving() {
+        if let boundsObserver {
+            NotificationCenter.default.removeObserver(boundsObserver)
+            self.boundsObserver = nil
+        }
+        observedScrollView = nil
+    }
+
+    /// 把 AppKit 的滚动偏移和视口高度回传给 SwiftUI 状态。
+    private func reportScrollPosition() {
+        guard let scrollView = observedScrollView else { return }
+        let bounds = scrollView.contentView.bounds
+        let offsetY = bounds.minY
+        let viewportHeight = bounds.height
+
+        DispatchQueue.main.async { [weak self] in
+            self?.onScrollChange(offsetY, viewportHeight)
+        }
+    }
+}
+
+private extension NSView {
+    /// 在 SwiftUI 包装层级变化时，兜底向上寻找指定类型的 AppKit 父视图。
+    func firstAncestor<T: NSView>(of type: T.Type) -> T? {
+        var currentView = superview
+        while let view = currentView {
+            if let match = view as? T {
+                return match
+            }
+            currentView = view.superview
+        }
+        return nil
     }
 }
 

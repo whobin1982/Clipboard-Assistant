@@ -122,6 +122,7 @@ enum ClipboardVisibleShortcutResolver {
     /// 取出当前可见区域内从上到下排列的前 9 条记录 id。
     static func visibleIDs(
         rowFrames: [ClipboardVisibleRowFrame],
+        scrollOffsetY: CGFloat = 0,
         viewportHeight: CGFloat,
         itemIDs: [UUID],
         limit: Int = 9
@@ -129,10 +130,12 @@ enum ClipboardVisibleShortcutResolver {
         guard viewportHeight > 0 else { return [] }
 
         let itemOrder = Dictionary(uniqueKeysWithValues: itemIDs.enumerated().map { ($0.element, $0.offset) })
+        let visibleMinY = max(0, scrollOffsetY)
+        let visibleMaxY = visibleMinY + viewportHeight
 
         return rowFrames
             .filter { frame in
-                itemOrder[frame.id] != nil && frame.maxY > 0 && frame.minY < viewportHeight
+                itemOrder[frame.id] != nil && frame.maxY > visibleMinY && frame.minY < visibleMaxY
             }
             .sorted { left, right in
                 if abs(left.minY - right.minY) < 0.5 {
@@ -144,9 +147,16 @@ enum ClipboardVisibleShortcutResolver {
             .map(\.id)
     }
 
-    /// 把可见 id 转成快捷选择候选记录；尚未拿到滚动位置信息时退回列表前 9 条。
-    static func shortcutItems(visibleIDs: [UUID], items: [ClipboardItem], limit: Int = 9) -> [ClipboardItem] {
-        guard !visibleIDs.isEmpty else { return Array(items.prefix(limit)) }
+    /// 把可见 id 转成快捷选择候选记录；尚未拿到滚动位置信息时可退回列表前 9 条。
+    static func shortcutItems(
+        visibleIDs: [UUID],
+        items: [ClipboardItem],
+        limit: Int = 9,
+        allowsFallback: Bool = true
+    ) -> [ClipboardItem] {
+        guard !visibleIDs.isEmpty else {
+            return allowsFallback ? Array(items.prefix(limit)) : []
+        }
 
         let itemByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
         return visibleIDs.prefix(limit).compactMap { itemByID[$0] }
