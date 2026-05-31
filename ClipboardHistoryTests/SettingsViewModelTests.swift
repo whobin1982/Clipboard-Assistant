@@ -442,7 +442,7 @@ final class SearchWindowPresenterTests: XCTestCase {
         XCTAssertNotNil(panel)
         XCTAssertEqual(panel?.frameAutosaveName, NSWindow.FrameAutosaveName("ClipboardHistorySearchWindow"))
         XCTAssertEqual(panel?.hidesOnDeactivate, false)
-        XCTAssertGreaterThanOrEqual(panel?.minSize.width ?? 0, 420)
+        XCTAssertGreaterThanOrEqual(panel?.minSize.width ?? 0, 520)
         XCTAssertGreaterThanOrEqual(panel?.minSize.height ?? 0, 360)
     }
 

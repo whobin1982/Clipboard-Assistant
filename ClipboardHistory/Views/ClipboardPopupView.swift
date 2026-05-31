@@ -100,7 +100,7 @@ struct ClipboardPopupView: View {
             }
         }
         .padding(12)
-        .frame(minWidth: 420, minHeight: 320)
+        .frame(minWidth: 520, minHeight: 320)
         .onAppear {
             viewModel.reload()
         }

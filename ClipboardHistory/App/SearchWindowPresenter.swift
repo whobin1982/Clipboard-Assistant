@@ -98,7 +98,7 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 480),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 480),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -108,7 +108,7 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
         panel.level = .floating
-        panel.minSize = NSSize(width: 420, height: 360)
+        panel.minSize = NSSize(width: 520, height: 360)
         panel.delegate = self
         panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         if !panel.setFrameUsingName(Self.frameAutosaveName) {
