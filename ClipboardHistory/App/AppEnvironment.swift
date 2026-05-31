@@ -7,7 +7,7 @@ import SwiftUI
 final class AppEnvironment: ObservableObject {
     @Published var isRecordingPaused: Bool {
         didSet {
-            recordingState.isPaused = isRecordingPaused
+            syncRecordingPaused(isRecordingPaused)
         }
     }
     @Published var historyViewModel: ClipboardHistoryViewModel
@@ -19,7 +19,7 @@ final class AppEnvironment: ObservableObject {
     private let searchWindowPresenter: SearchWindowPresenting
     private let settingsWindowPresenter: SettingsWindowPresenting
     private let imageStorage: ImageStorage?
-    private let recordingState: RecordingState
+    let recordingPauseState: RecordingPauseState
     private var retentionCleaner: RetentionCleaner?
     private var clipboardMonitor: ClipboardMonitor?
     private var shortcutService: ShortcutService?
@@ -44,13 +44,15 @@ final class AppEnvironment: ObservableObject {
         self.searchWindowPresenter = searchWindowPresenter ?? SearchWindowPresenter()
         self.settingsWindowPresenter = settingsWindowPresenter ?? SettingsWindowPresenter()
         self.imageStorage = imageStorage
-        recordingState = RecordingState(isPaused: isRecordingPaused)
+        recordingPauseState = RecordingPauseState(isPaused: isRecordingPaused)
         lastErrorMessage = startupErrorMessage
 
         let historyViewModel = ClipboardHistoryViewModel(store: store)
         self.historyViewModel = historyViewModel
+        var initialSettings = settings
+        initialSettings.isRecordingPaused = isRecordingPaused
         settingsViewModel = SettingsViewModel(
-            settings: settings,
+            settings: initialSettings,
             storageUsageBytes: storageUsageProvider(),
             storageUsageProvider: storageUsageProvider,
             settingsDidChange: settingsDidChange,
@@ -105,6 +107,7 @@ final class AppEnvironment: ObservableObject {
             }
 
             let environment = AppEnvironment(
+                isRecordingPaused: settings.isRecordingPaused,
                 store: store,
                 pasteService: pasteService,
                 imageStorage: imageStorage,
@@ -133,8 +136,8 @@ final class AppEnvironment: ObservableObject {
             let monitor = ClipboardMonitor(
                 store: store,
                 imageStorage: imageStorage,
-                isRecordingPaused: { [weak recordingState = environment.recordingState] in
-                    recordingState?.isPaused ?? true
+                isRecordingPaused: { [weak recordingPauseState = environment.recordingPauseState] in
+                    recordingPauseState?.isPaused ?? true
                 }
             )
             environment.clipboardMonitor = monitor
@@ -171,6 +174,7 @@ final class AppEnvironment: ObservableObject {
                 get: { self.isRecordingPaused },
                 set: { self.isRecordingPaused = $0 }
             ),
+            recordingPauseState: recordingPauseState,
             historyWindowStaysOpen: Binding(
                 get: { self.settingsViewModel.historyWindowStaysOpen },
                 set: { self.settingsViewModel.historyWindowStaysOpen = $0 }
@@ -302,6 +306,15 @@ final class AppEnvironment: ObservableObject {
         }
     }
 
+    private func syncRecordingPaused(_ isPaused: Bool) {
+        if recordingPauseState.isPaused != isPaused {
+            recordingPauseState.isPaused = isPaused
+        }
+        if settingsViewModel.settings.isRecordingPaused != isPaused {
+            settingsViewModel.isRecordingPaused = isPaused
+        }
+    }
+
     private func startPeriodicRetentionCleanup() {
         retentionCleanupTimer?.invalidate()
         retentionCleanupTimer = Timer.scheduledTimer(withTimeInterval: 60 * 60, repeats: true) { [weak self] _ in
@@ -354,8 +367,8 @@ final class AppEnvironment: ObservableObject {
     }
 }
 
-private final class RecordingState {
-    var isPaused: Bool
+final class RecordingPauseState: ObservableObject {
+    @Published var isPaused: Bool
 
     init(isPaused: Bool) {
         self.isPaused = isPaused

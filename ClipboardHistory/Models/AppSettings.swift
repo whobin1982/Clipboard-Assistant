@@ -131,6 +131,7 @@ struct AppSettings: Codable, Equatable {
     var escapeClosesWindow: Bool
     var historyWindowStaysOpen: Bool
     var historyWindowAlwaysOnTop: Bool
+    var isRecordingPaused: Bool
 
     var retentionPolicy: RetentionPolicy {
         get {
@@ -166,7 +167,8 @@ struct AppSettings: Codable, Equatable {
         closeWindowAfterSelection: true,
         escapeClosesWindow: true,
         historyWindowStaysOpen: false,
-        historyWindowAlwaysOnTop: false
+        historyWindowAlwaysOnTop: false,
+        isRecordingPaused: false
     )
 
     init(
@@ -178,7 +180,8 @@ struct AppSettings: Codable, Equatable {
         closeWindowAfterSelection: Bool = true,
         escapeClosesWindow: Bool = true,
         historyWindowStaysOpen: Bool = false,
-        historyWindowAlwaysOnTop: Bool = false
+        historyWindowAlwaysOnTop: Bool = false,
+        isRecordingPaused: Bool = false
     ) {
         self.retentionDays = retentionDays
         self.launchAtLogin = launchAtLogin
@@ -189,6 +192,7 @@ struct AppSettings: Codable, Equatable {
         self.escapeClosesWindow = escapeClosesWindow
         self.historyWindowStaysOpen = historyWindowStaysOpen
         self.historyWindowAlwaysOnTop = historyWindowAlwaysOnTop
+        self.isRecordingPaused = isRecordingPaused
     }
 
     init(
@@ -205,6 +209,7 @@ struct AppSettings: Codable, Equatable {
         escapeClosesWindow = true
         historyWindowStaysOpen = false
         historyWindowAlwaysOnTop = false
+        isRecordingPaused = false
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -218,6 +223,7 @@ struct AppSettings: Codable, Equatable {
         case escapeClosesWindow
         case historyWindowStaysOpen
         case historyWindowAlwaysOnTop
+        case isRecordingPaused
     }
 
     init(from decoder: Decoder) throws {
@@ -240,6 +246,7 @@ struct AppSettings: Codable, Equatable {
         escapeClosesWindow = try container.decodeIfPresent(Bool.self, forKey: .escapeClosesWindow) ?? true
         historyWindowStaysOpen = try container.decodeIfPresent(Bool.self, forKey: .historyWindowStaysOpen) ?? false
         historyWindowAlwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .historyWindowAlwaysOnTop) ?? false
+        isRecordingPaused = try container.decodeIfPresent(Bool.self, forKey: .isRecordingPaused) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -254,5 +261,6 @@ struct AppSettings: Codable, Equatable {
         try container.encode(escapeClosesWindow, forKey: .escapeClosesWindow)
         try container.encode(historyWindowStaysOpen, forKey: .historyWindowStaysOpen)
         try container.encode(historyWindowAlwaysOnTop, forKey: .historyWindowAlwaysOnTop)
+        try container.encode(isRecordingPaused, forKey: .isRecordingPaused)
     }
 }

@@ -408,6 +408,41 @@ final class AppEnvironmentTests: XCTestCase {
     }
 
     @MainActor
+    func testOpenSearchPassesLiveRecordingPauseStateToPresenter() throws {
+        let recorder = AppEnvironmentCallRecorder()
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            isRecordingPaused: false,
+            searchWindowPresenter: presenter
+        )
+
+        environment.openSearch()
+        let recordingPauseState = try XCTUnwrap(presenter.recordingPauseState)
+        XCTAssertFalse(recordingPauseState.isPaused)
+
+        environment.isRecordingPaused = true
+        XCTAssertTrue(recordingPauseState.isPaused)
+
+        try XCTUnwrap(presenter.isRecordingPaused).wrappedValue = false
+        XCTAssertFalse(recordingPauseState.isPaused)
+        XCTAssertFalse(environment.isRecordingPaused)
+    }
+
+    @MainActor
+    func testChangingRecordingPausePersistsToSettings() {
+        var savedSettings: [AppSettings] = []
+        let environment = AppEnvironment(
+            isRecordingPaused: false,
+            settingsDidChange: { savedSettings.append($0) }
+        )
+
+        environment.isRecordingPaused = true
+
+        XCTAssertEqual(savedSettings.last?.isRecordingPaused, true)
+        XCTAssertTrue(environment.settingsViewModel.settings.isRecordingPaused)
+    }
+
+    @MainActor
     func testOpenSearchPassesHistoryWindowBehaviorBindingsToPresenter() throws {
         let recorder = AppEnvironmentCallRecorder()
         let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
@@ -505,6 +540,7 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            recordingPauseState: RecordingPauseState(isPaused: false),
             historyWindowStaysOpen: .constant(false),
             historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
@@ -537,6 +573,7 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            recordingPauseState: RecordingPauseState(isPaused: false),
             historyWindowStaysOpen: .constant(false),
             historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
@@ -573,6 +610,7 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            recordingPauseState: RecordingPauseState(isPaused: false),
             historyWindowStaysOpen: Binding(
                 get: { staysOpen },
                 set: { staysOpen = $0 }
@@ -680,6 +718,7 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            recordingPauseState: RecordingPauseState(isPaused: false),
             historyWindowStaysOpen: .constant(false),
             historyWindowAlwaysOnTop: .constant(true),
             onClose: {},
@@ -713,6 +752,7 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            recordingPauseState: RecordingPauseState(isPaused: false),
             historyWindowStaysOpen: .constant(false),
             historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
@@ -746,6 +786,7 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            recordingPauseState: RecordingPauseState(isPaused: false),
             historyWindowStaysOpen: .constant(false),
             historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
@@ -773,6 +814,7 @@ final class SearchWindowPresenterTests: XCTestCase {
             previousApplication: nil,
             escapeClosesWindow: true,
             isRecordingPaused: .constant(false),
+            recordingPauseState: RecordingPauseState(isPaused: false),
             historyWindowStaysOpen: .constant(false),
             historyWindowAlwaysOnTop: .constant(false),
             onClose: {},
@@ -865,6 +907,7 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
     private(set) var onClearNonFavorites: (() -> Void)?
     private(set) var onClearAll: (() -> Void)?
     private(set) var isRecordingPaused: Binding<Bool>?
+    private(set) var recordingPauseState: RecordingPauseState?
     private(set) var historyWindowStaysOpen: Binding<Bool>?
     private(set) var historyWindowAlwaysOnTop: Binding<Bool>?
 
@@ -877,6 +920,7 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
         isRecordingPaused: Binding<Bool>,
+        recordingPauseState: RecordingPauseState,
         historyWindowStaysOpen: Binding<Bool>,
         historyWindowAlwaysOnTop: Binding<Bool>,
         onClose: @escaping () -> Void,
@@ -890,6 +934,7 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
     ) {
         recorder.record(previousApplication == nil ? "show" : "showWithPreviousApplication")
         self.isRecordingPaused = isRecordingPaused
+        self.recordingPauseState = recordingPauseState
         self.historyWindowStaysOpen = historyWindowStaysOpen
         self.historyWindowAlwaysOnTop = historyWindowAlwaysOnTop
         self.onOpenSettings = onOpenSettings

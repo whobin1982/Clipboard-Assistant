@@ -205,6 +205,20 @@ final class PasteServiceTests: XCTestCase {
         XCTAssertNil(reader.readImageArchive())
     }
 
+    func testSystemPasteboardReaderIgnoresPDFFileURL() throws {
+        let pdfURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("pdf")
+        try makeTestPDFData().write(to: pdfURL)
+        defer { try? FileManager.default.removeItem(at: pdfURL) }
+        let pasteboard = try XCTUnwrap(NSPasteboard(name: NSPasteboard.Name(UUID().uuidString)))
+        pasteboard.clearContents()
+        pasteboard.writeObjects([pdfURL as NSURL])
+        let reader = SystemPasteboardReader(pasteboard: pasteboard)
+
+        XCTAssertNil(reader.readImageArchive())
+    }
+
     func testCopyAndPasteCopiesThenSendsPasteCommand() throws {
         let recorder = CallRecorder()
         let pasteboard = FakePasteboardWriter(recorder: recorder)
@@ -325,6 +339,10 @@ private enum TestError: Error, Equatable {
     case pasteFailed
 }
 
+private enum TestDataError: Error {
+    case pdfCreationFailed
+}
+
 private func makeTestImage(size: NSSize = NSSize(width: 2, height: 2)) -> NSImage {
     let image = NSImage(size: size)
     image.lockFocus()
@@ -332,6 +350,23 @@ private func makeTestImage(size: NSSize = NSSize(width: 2, height: 2)) -> NSImag
     NSRect(origin: .zero, size: size).fill()
     image.unlockFocus()
     return image
+}
+
+private func makeTestPDFData() throws -> Data {
+    let data = NSMutableData()
+    guard let consumer = CGDataConsumer(data: data as CFMutableData) else {
+        throw TestDataError.pdfCreationFailed
+    }
+    var mediaBox = CGRect(x: 0, y: 0, width: 24, height: 24)
+    guard let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+        throw TestDataError.pdfCreationFailed
+    }
+    context.beginPDFPage(nil)
+    context.setFillColor(NSColor.systemBlue.cgColor)
+    context.fill(mediaBox)
+    context.endPDFPage()
+    context.closePDF()
+    return data as Data
 }
 
 private extension NSImage {

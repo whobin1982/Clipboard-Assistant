@@ -8,6 +8,7 @@ protocol SearchWindowPresenting: AnyObject {
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
         isRecordingPaused: Binding<Bool>,
+        recordingPauseState: RecordingPauseState,
         historyWindowStaysOpen: Binding<Bool>,
         historyWindowAlwaysOnTop: Binding<Bool>,
         onClose: @escaping () -> Void,
@@ -43,6 +44,7 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         previousApplication: NSRunningApplication?,
         escapeClosesWindow: Bool,
         isRecordingPaused: Binding<Bool>,
+        recordingPauseState: RecordingPauseState,
         historyWindowStaysOpen: Binding<Bool>,
         historyWindowAlwaysOnTop: Binding<Bool>,
         onClose: @escaping () -> Void,
@@ -61,6 +63,7 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
 
         let contentView = ClipboardPopupView(
             viewModel: viewModel,
+            recordingPauseState: recordingPauseState,
             escapeClosesWindow: escapeClosesWindow,
             isRecordingPaused: isRecordingPaused,
             onClose: onClose,

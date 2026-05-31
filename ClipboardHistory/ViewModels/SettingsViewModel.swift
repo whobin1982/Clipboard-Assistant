@@ -98,6 +98,15 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    var isRecordingPaused: Bool {
+        get { settings.isRecordingPaused }
+        set {
+            settings.isRecordingPaused = newValue
+            settingsDidChange(settings)
+            lastErrorMessage = nil
+        }
+    }
+
     var retentionPolicy: RetentionPolicy {
         get { settings.retentionPolicy }
         set {

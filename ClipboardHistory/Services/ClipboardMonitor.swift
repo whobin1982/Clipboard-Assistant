@@ -140,6 +140,16 @@ final class SystemPasteboardReader: PasteboardReading {
         NSPasteboard.PasteboardType("com.compuserve.gif")
     ]
     private static let directImageTypeSet = Set(directImageTypes)
+    private static let imageFilePasteboardTypesByExtension: [String: NSPasteboard.PasteboardType] = [
+        "png": .png,
+        "tif": .tiff,
+        "tiff": .tiff,
+        "jpg": NSPasteboard.PasteboardType("public.jpeg"),
+        "jpeg": NSPasteboard.PasteboardType("public.jpeg"),
+        "heic": NSPasteboard.PasteboardType("public.heic"),
+        "heif": NSPasteboard.PasteboardType("public.heif"),
+        "gif": NSPasteboard.PasteboardType("com.compuserve.gif")
+    ]
     private static let knownFileReferenceTypes: Set<NSPasteboard.PasteboardType> = [
         .fileURL,
         .fileContents,
@@ -282,6 +292,10 @@ final class SystemPasteboardReader: PasteboardReading {
     }
 
     private func imagePayload(fromFileURL url: URL) -> ClipboardImagePayload? {
+        guard let pasteboardType = Self.imageFilePasteboardTypesByExtension[url.pathExtension.lowercased()] else {
+            return nil
+        }
+
         guard
             let data = try? Data(contentsOf: url),
             !data.isEmpty
@@ -291,7 +305,7 @@ final class SystemPasteboardReader: PasteboardReading {
 
         let payload = ClipboardImagePayload(
             data: data,
-            pasteboardType: ClipboardImagePayload.pasteboardType(forFileExtension: url.pathExtension)
+            pasteboardType: pasteboardType
         )
         return payload.image == nil ? nil : payload
     }

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ClipboardPopupView: View {
     @ObservedObject var viewModel: ClipboardHistoryViewModel
+    @ObservedObject var recordingPauseState: RecordingPauseState
     @StateObject private var selectionController = ClipboardSelectionController()
     @State private var clearConfirmation: ClipboardClearConfirmation?
 
@@ -42,7 +43,7 @@ struct ClipboardPopupView: View {
                     .toggleStyle(.switch)
                     .controlSize(.small)
                     .fixedSize()
-                    .help(isRecordingPaused ? "点击后继续记录剪贴板" : "点击后暂停记录剪贴板")
+                    .help(recordingPauseState.isPaused ? "点击后继续记录剪贴板" : "点击后暂停记录剪贴板")
 
                 Menu {
                     Button("清空非收藏记录") {
@@ -129,7 +130,7 @@ struct ClipboardPopupView: View {
 
     private var isRecordingEnabled: Binding<Bool> {
         Binding(
-            get: { !isRecordingPaused },
+            get: { !recordingPauseState.isPaused },
             set: { isRecordingPaused = !$0 }
         )
     }
