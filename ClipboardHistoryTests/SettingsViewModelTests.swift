@@ -22,6 +22,21 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(updatedShortcuts.last, .controlOptionV)
     }
 
+    /// 快捷键注册失败时不应保存失败设置，并应在设置页显示错误。
+    func testSelectingShortcutRegistrationFailureKeepsPreviousSettingAndShowsError() {
+        var savedSettings: [AppSettings] = []
+        let viewModel = SettingsViewModel(
+            settingsDidChange: { savedSettings.append($0) },
+            shortcutDidChange: { _ in throw SettingsViewModelTestError.shortcutRegistrationFailed }
+        )
+
+        viewModel.selectedShortcutID = ShortcutDefinition.controlCommandV.id
+
+        XCTAssertEqual(viewModel.settings.shortcutID, ShortcutDefinition.optionCommandV.id)
+        XCTAssertTrue(savedSettings.isEmpty)
+        XCTAssertEqual(viewModel.lastErrorMessage, SettingsViewModelTestError.shortcutRegistrationFailed.localizedDescription)
+    }
+
     /// 应用自定义快捷键时应保存到 customShortcut，并通知快捷键服务。
     func testApplyingCustomShortcutPersistsAndNotifiesShortcutService() {
         var savedSettings: [AppSettings] = []
@@ -1086,6 +1101,18 @@ private extension NSImage {
             return nil
         }
         return bitmap.representation(using: .png, properties: [:])
+    }
+}
+
+/// SettingsViewModel 测试中使用的模拟错误。
+private enum SettingsViewModelTestError: LocalizedError {
+    case shortcutRegistrationFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .shortcutRegistrationFailed:
+            return "快捷键注册失败"
+        }
     }
 }
 

@@ -475,7 +475,16 @@ final class ClipboardMonitor {
             postHistoryChanged()
             markChangeHandled(changeCount)
         } catch {
+            removePartiallySavedImageFiles(paths)
             lastError = error
+        }
+    }
+
+    /// 图片已落盘但数据库写入失败时，删除本次生成的文件，避免重试期间不断产生孤儿文件。
+    private func removePartiallySavedImageFiles(_ paths: (imagePath: String, thumbnailPath: String)) {
+        [paths.imagePath, paths.thumbnailPath].forEach { path in
+            guard FileManager.default.fileExists(atPath: path) else { return }
+            try? FileManager.default.removeItem(atPath: path)
         }
     }
 }
