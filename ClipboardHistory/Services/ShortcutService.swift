@@ -2,6 +2,21 @@ import AppKit
 import Carbon.HIToolbox
 import Foundation
 
+/// 全局快捷键注册失败时向设置页展示的错误。
+enum ShortcutServiceError: LocalizedError, Equatable {
+    case eventHandlerInstallFailed(OSStatus)
+    case registrationFailed(OSStatus)
+
+    var errorDescription: String? {
+        switch self {
+        case .eventHandlerInstallFailed:
+            return "无法安装快捷键监听器，请重启剪贴板助手后再试。"
+        case .registrationFailed:
+            return "快捷键注册失败，可能已被其他应用占用。请换一个快捷键组合。"
+        }
+    }
+}
+
 /// 注册和管理全局快捷键，用来从任意应用呼出剪贴板历史窗口。
 final class ShortcutService {
     static let defaultShortcutDisplayName = "⌥ + ⌘ + V"
@@ -14,13 +29,28 @@ final class ShortcutService {
     }
 
     private let openPopup: () -> Void
+    private let registerHotKeyHandler: (ShortcutDefinition, EventHotKeyID, inout EventHotKeyRef?) -> OSStatus
     private var shortcut: ShortcutDefinition
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
 
-    init(shortcut: ShortcutDefinition = .optionCommandV, openPopup: @escaping () -> Void) {
+    init(
+        shortcut: ShortcutDefinition = .optionCommandV,
+        openPopup: @escaping () -> Void,
+        registerHotKeyHandler: @escaping (ShortcutDefinition, EventHotKeyID, inout EventHotKeyRef?) -> OSStatus = { shortcut, hotKeyID, hotKeyRef in
+            RegisterEventHotKey(
+                UInt32(shortcut.keyCode),
+                shortcut.carbonModifiers,
+                hotKeyID,
+                GetApplicationEventTarget(),
+                0,
+                &hotKeyRef
+            )
+        }
+    ) {
         self.shortcut = shortcut
         self.openPopup = openPopup
+        self.registerHotKeyHandler = registerHotKeyHandler
     }
 
     deinit {
@@ -28,10 +58,15 @@ final class ShortcutService {
     }
 
     /// 安装事件处理器并注册当前快捷键。
-    func start() {
+    func start() throws {
         guard hotKeyRef == nil else { return }
-        installEventHandlerIfNeeded()
-        registerHotKey()
+        do {
+            try installEventHandlerIfNeeded()
+            try registerHotKey()
+        } catch {
+            stop()
+            throw error
+        }
     }
 
     /// 注销快捷键和事件处理器。
@@ -48,14 +83,21 @@ final class ShortcutService {
     }
 
     /// 更新快捷键；如果服务正在运行，会先注销旧快捷键再注册新快捷键。
-    func updateShortcut(_ shortcut: ShortcutDefinition) {
+    func updateShortcut(_ shortcut: ShortcutDefinition) throws {
         let wasRunning = hotKeyRef != nil || eventHandlerRef != nil
+        let previousShortcut = self.shortcut
         if wasRunning {
             stop()
         }
         self.shortcut = shortcut
         if wasRunning {
-            start()
+            do {
+                try start()
+            } catch {
+                self.shortcut = previousShortcut
+                try? start()
+                throw error
+            }
         }
     }
 
@@ -65,7 +107,7 @@ final class ShortcutService {
     }
 
     /// 安装 Carbon 事件处理器，收到本应用 hot key 事件时切回主线程打开窗口。
-    private func installEventHandlerIfNeeded() {
+    private func installEventHandlerIfNeeded() throws {
         guard eventHandlerRef == nil else { return }
 
         var eventType = EventTypeSpec(
@@ -109,23 +151,18 @@ final class ShortcutService {
 
         if status != noErr {
             eventHandlerRef = nil
+            throw ShortcutServiceError.eventHandlerInstallFailed(status)
         }
     }
 
     /// 将当前快捷键注册为系统全局快捷键。
-    private func registerHotKey() {
+    private func registerHotKey() throws {
         let hotKeyID = EventHotKeyID(signature: Self.hotKeySignature, id: 1)
-        let status = RegisterEventHotKey(
-            UInt32(shortcut.keyCode),
-            shortcut.carbonModifiers,
-            hotKeyID,
-            GetApplicationEventTarget(),
-            0,
-            &hotKeyRef
-        )
+        let status = registerHotKeyHandler(shortcut, hotKeyID, &hotKeyRef)
 
-        if status != noErr {
+        if status != noErr || hotKeyRef == nil {
             hotKeyRef = nil
+            throw ShortcutServiceError.registrationFailed(status)
         }
     }
 }

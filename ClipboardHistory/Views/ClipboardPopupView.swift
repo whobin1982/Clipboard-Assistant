@@ -130,44 +130,50 @@ struct ClipboardPopupView: View {
                 ContentUnavailableView("暂无剪贴板记录", systemImage: "doc.on.clipboard")
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
-                            ClipboardRowView(
-                                item: item,
-                                shortcutNumber: shortcutNumber(
-                                    for: item.id,
-                                    visibleShortcutItemIDs: visibleShortcutItemIDs,
-                                    allowsFallback: allowsInitialShortcutFallback,
-                                    fallbackIndex: index
-                                ),
-                                isSelected: selectionController.selectedItemID == item.id,
-                                onFavorite: { viewModel.toggleFavorite(item) },
-                                onDelete: { onDelete(item) },
-                                onPaste: { onPaste(item) },
-                                onCopy: { onCopy(item) }
-                            )
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(
-                                ClipboardVisibleRowReporter(
-                                    itemID: item.id,
-                                    coordinateSpaceName: Self.historyListContentCoordinateSpace
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
+                                ClipboardRowView(
+                                    item: item,
+                                    shortcutNumber: shortcutNumber(
+                                        for: item.id,
+                                        visibleShortcutItemIDs: visibleShortcutItemIDs,
+                                        allowsFallback: allowsInitialShortcutFallback,
+                                        fallbackIndex: index
+                                    ),
+                                    isSelected: selectionController.selectedItemID == item.id,
+                                    onFavorite: { viewModel.toggleFavorite(item) },
+                                    onDelete: { onDelete(item) },
+                                    onPaste: { onPaste(item) },
+                                    onCopy: { onCopy(item) }
                                 )
-                            )
+                                .id(item.id)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    ClipboardVisibleRowReporter(
+                                        itemID: item.id,
+                                        coordinateSpaceName: Self.historyListContentCoordinateSpace
+                                    )
+                                )
 
-                            if index < visibleItems.index(before: visibleItems.endIndex) {
-                                Divider()
+                                if index < visibleItems.index(before: visibleItems.endIndex) {
+                                    Divider()
+                                }
                             }
                         }
+                        .coordinateSpace(name: Self.historyListContentCoordinateSpace)
+                        .background(
+                            ClipboardScrollPositionObserver { offsetY, viewportHeight in
+                                updateScrollPosition(offsetY: offsetY, viewportHeight: viewportHeight)
+                            }
+                        )
                     }
-                    .coordinateSpace(name: Self.historyListContentCoordinateSpace)
-                    .background(
-                        ClipboardScrollPositionObserver { offsetY, viewportHeight in
-                            updateScrollPosition(offsetY: offsetY, viewportHeight: viewportHeight)
-                        }
-                    )
+                    .frame(minHeight: 180)
+                    .onChange(of: selectionController.selectedItemID) { _, selectedItemID in
+                        scrollToSelectedItem(selectedItemID, proxy: proxy)
+                    }
                 }
-                .frame(minHeight: 180)
             }
         }
         .padding(12)
@@ -198,6 +204,17 @@ struct ClipboardPopupView: View {
         }
         .onPreferenceChange(ClipboardVisibleRowFramesPreferenceKey.self) { frames in
             visibleRowFrames = frames
+        }
+    }
+
+    /// 键盘上下键改变选中项时，让滚动区域自动跟随到当前记录。
+    private func scrollToSelectedItem(_ selectedItemID: UUID?, proxy: ScrollViewProxy) {
+        guard let selectedItemID else {
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 0.12)) {
+            proxy.scrollTo(selectedItemID, anchor: .center)
         }
     }
 

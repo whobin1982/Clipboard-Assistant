@@ -172,9 +172,14 @@ final class AppEnvironment: ObservableObject {
             }
             environment.shortcutService = shortcutService
             environment.settingsViewModel.setShortcutDidChange { [weak shortcutService] shortcut in
-                shortcutService?.updateShortcut(shortcut)
+                guard let shortcutService else { return }
+                try shortcutService.updateShortcut(shortcut)
             }
-            shortcutService.start()
+            do {
+                try shortcutService.start()
+            } catch {
+                environment.lastErrorMessage = error.localizedDescription
+            }
 
             return environment
         } catch {

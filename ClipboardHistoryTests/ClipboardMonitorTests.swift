@@ -351,6 +351,32 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertEqual(store.insertedItems[0].thumbnailPath, "/tmp/retry-thumb.png")
     }
 
+    /// 图片文件已保存但数据库写入失败时，应立即清理本次生成的图片文件，避免 0.5 秒轮询不断制造孤儿文件。
+    func testImageStoreInsertFailureRemovesSavedFilesBeforeRetry() throws {
+        let pasteboard = FakePasteboard(changeCount: 1, image: makeImage())
+        let store = FakeClipboardStore(error: TestError.insertFailed)
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ClipboardMonitorTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+        let imageStorage = try ImageStorage(directory: temporaryDirectory)
+        let monitor = ClipboardMonitor(
+            pasteboard: pasteboard,
+            store: store,
+            imageStorage: imageStorage,
+            isRecordingPaused: { false }
+        )
+
+        pasteboard.changeCount = 2
+        monitor.pollOnce()
+
+        let remainingFiles = try FileManager.default.contentsOfDirectory(
+            at: temporaryDirectory,
+            includingPropertiesForKeys: nil
+        )
+        XCTAssertTrue(monitor.lastError is TestError)
+        XCTAssertTrue(remainingFiles.isEmpty)
+    }
+
     /// 创建测试用图片。
     private func makeImage() -> NSImage {
         let image = NSImage(size: NSSize(width: 8, height: 8))

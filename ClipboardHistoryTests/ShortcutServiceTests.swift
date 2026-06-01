@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import XCTest
 @testable import ClipboardHistory
 
@@ -13,8 +14,22 @@ final class ShortcutServiceTests: XCTestCase {
     func testShortcutServiceUpdatesCurrentShortcut() {
         let service = ShortcutService(shortcut: .optionCommandV) {}
 
-        service.updateShortcut(.controlOptionV)
+        XCTAssertNoThrow(try service.updateShortcut(.controlOptionV))
 
         XCTAssertEqual(service.shortcutDisplayName, "⌃ + ⌥ + V")
+    }
+
+    /// Carbon 返回注册失败时应抛出明确错误，而不是静默让快捷键失效。
+    func testShortcutServiceThrowsWhenCarbonRegistrationFails() {
+        let expectedStatus = OSStatus(eventHotKeyExistsErr)
+        let service = ShortcutService(
+            shortcut: .optionCommandV,
+            openPopup: {},
+            registerHotKeyHandler: { _, _, _ in expectedStatus }
+        )
+
+        XCTAssertThrowsError(try service.start()) { error in
+            XCTAssertEqual(error as? ShortcutServiceError, .registrationFailed(expectedStatus))
+        }
     }
 }

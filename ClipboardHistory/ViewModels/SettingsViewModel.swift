@@ -18,7 +18,7 @@ final class SettingsViewModel: ObservableObject {
     private let settingsDidChange: (AppSettings) -> Void
     private let launchAtLoginDidChange: (Bool) throws -> Void
     private let retentionDaysDidChange: (AppSettings) throws -> Void
-    private var shortcutDidChange: (ShortcutDefinition) -> Void
+    private var shortcutDidChange: (ShortcutDefinition) throws -> Void
 
     init(
         settings: AppSettings = .default,
@@ -27,7 +27,7 @@ final class SettingsViewModel: ObservableObject {
         settingsDidChange: @escaping (AppSettings) -> Void = { _ in },
         launchAtLoginDidChange: @escaping (Bool) throws -> Void = { _ in },
         retentionDaysDidChange: @escaping (AppSettings) throws -> Void = { _ in },
-        shortcutDidChange: @escaping (ShortcutDefinition) -> Void = { _ in },
+        shortcutDidChange: @escaping (ShortcutDefinition) throws -> Void = { _ in },
         clearNonFavorites: @escaping () throws -> Void = {},
         clearAll: @escaping () throws -> Void = {}
     ) {
@@ -166,18 +166,16 @@ final class SettingsViewModel: ObservableObject {
         get { settings.shortcutID }
         set {
             if newValue == ShortcutDefinition.customID, let shortcut = settings.customShortcut {
-                settings.shortcutID = shortcut.id
-                settingsDidChange(settings)
-                shortcutDidChange(shortcut)
-                lastErrorMessage = nil
+                applyShortcut(shortcut) {
+                    settings.shortcutID = shortcut.id
+                }
                 return
             }
 
             let shortcut = ShortcutDefinition.definition(for: newValue)
-            settings.shortcutID = shortcut.id
-            settingsDidChange(settings)
-            shortcutDidChange(shortcut)
-            lastErrorMessage = nil
+            applyShortcut(shortcut) {
+                settings.shortcutID = shortcut.id
+            }
         }
     }
 
@@ -206,11 +204,10 @@ final class SettingsViewModel: ObservableObject {
 
     /// 保存用户录制的自定义快捷键。
     func applyCustomShortcut(_ shortcut: ShortcutDefinition) {
-        settings.customShortcut = shortcut
-        settings.shortcutID = shortcut.id
-        settingsDidChange(settings)
-        shortcutDidChange(shortcut)
-        lastErrorMessage = nil
+        applyShortcut(shortcut) {
+            settings.customShortcut = shortcut
+            settings.shortcutID = shortcut.id
+        }
     }
 
     /// 清空非收藏记录，并刷新存储占用。
@@ -241,7 +238,19 @@ final class SettingsViewModel: ObservableObject {
     }
 
     /// AppEnvironment 在 ShortcutService 创建后注入更新回调。
-    func setShortcutDidChange(_ handler: @escaping (ShortcutDefinition) -> Void) {
+    func setShortcutDidChange(_ handler: @escaping (ShortcutDefinition) throws -> Void) {
         shortcutDidChange = handler
+    }
+
+    /// 先尝试让系统快捷键生效，成功后再保存设置，避免界面显示一个实际无效的组合。
+    private func applyShortcut(_ shortcut: ShortcutDefinition, updateSettings: () -> Void) {
+        do {
+            try shortcutDidChange(shortcut)
+            updateSettings()
+            settingsDidChange(settings)
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
     }
 }
