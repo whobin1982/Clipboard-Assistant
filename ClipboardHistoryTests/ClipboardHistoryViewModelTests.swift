@@ -24,6 +24,36 @@ final class ClipboardHistoryViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.filteredItems.map(\.id), [matchingText.id])
     }
 
+    /// 类型筛选应先限制记录范围，再在范围内执行搜索。
+    func testFilteredItemsSupportsTypeAndFavoriteFilters() throws {
+        let matchingText = ClipboardItem.text("Project Quote", copiedAt: Date(timeIntervalSince1970: 40))
+        let nonmatchingText = ClipboardItem.text("Invoice", copiedAt: Date(timeIntervalSince1970: 30))
+        var favoriteText = ClipboardItem.text("Address Template", copiedAt: Date(timeIntervalSince1970: 20))
+        favoriteText.isFavorite = true
+        let image = ClipboardItem.image(
+            imagePath: "/tmp/project.png",
+            thumbnailPath: "/tmp/project-thumb.png",
+            copiedAt: Date(timeIntervalSince1970: 10)
+        )
+        let store = ClipboardHistoryViewModelFakeStore(items: [matchingText, nonmatchingText, favoriteText, image])
+        let viewModel = ClipboardHistoryViewModel(store: store)
+
+        viewModel.reload()
+
+        viewModel.filter = .text
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), [matchingText.id, nonmatchingText.id, favoriteText.id])
+
+        viewModel.filter = .image
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), [image.id])
+
+        viewModel.filter = .favorites
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), [favoriteText.id])
+
+        viewModel.filter = .text
+        viewModel.query = "project"
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), [matchingText.id])
+    }
+
     /// 切换收藏状态后应写入存储并刷新列表。
     func testToggleFavoriteUpdatesStoreAndReloadsItemsInFetchOrder() throws {
         let first = ClipboardItem.text("first", copiedAt: Date(timeIntervalSince1970: 30))

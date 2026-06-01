@@ -48,7 +48,7 @@ final class HelpWindowPresenter {
 enum AboutPanelPresenter {
     static func show() {
         let bundle = Bundle.main
-        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.2.0"
+        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.3.0"
         let credits = NSAttributedString(
             string: "作者：胡斌\n\n一个运行在 Mac 菜单栏里的剪贴板历史工具。",
             attributes: [
