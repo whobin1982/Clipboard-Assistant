@@ -313,6 +313,51 @@ final class AppEnvironmentTests: XCTestCase {
         XCTAssertNotNil(try store.fetchAll().first?.lastUsedAt)
     }
 
+    /// 图片文字菜单在 OCR 尚未实现时，应给出清楚提示且不写入文本剪贴板。
+    @MainActor
+    func testCopyImageTextWithoutOCRShowsMessage() throws {
+        let recorder = AppEnvironmentCallRecorder()
+        let item = ClipboardItem.image(imagePath: "/tmp/image.clipboardimage", thumbnailPath: "/tmp/thumb.png")
+        let store = AppEnvironmentFakeStore(items: [item], recorder: recorder)
+        let pasteboard = AppEnvironmentFakePasteboardWriter(recorder: recorder)
+        let pasteService = PasteService(pasteboard: pasteboard, pasteEventSender: AppEnvironmentFakePasteEventSender(recorder: recorder, onSend: {}))
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            store: store,
+            pasteService: pasteService,
+            searchWindowPresenter: presenter
+        )
+
+        environment.openSearch()
+        try XCTUnwrap(presenter.onCopyImageText)(item)
+
+        XCTAssertEqual(environment.lastErrorMessage, "这张图片还没有可复制的识别文字。")
+        XCTAssertNil(pasteboard.writtenText)
+    }
+
+    /// 图片导出菜单应把图片历史导出为 PNG 文件。
+    @MainActor
+    func testExportImageWritesPNGFile() throws {
+        let recorder = AppEnvironmentCallRecorder()
+        let imageURL = temporaryDirectory.appendingPathComponent("saved-image.png")
+        let destinationURL = temporaryDirectory.appendingPathComponent("exported.png")
+        try XCTUnwrap(makeTestImage().pngData).write(to: imageURL)
+        let item = ClipboardItem.image(imagePath: imageURL.path, thumbnailPath: imageURL.path)
+        let store = AppEnvironmentFakeStore(items: [item], recorder: recorder)
+        let presenter = AppEnvironmentFakeSearchWindowPresenter(recorder: recorder)
+        let environment = AppEnvironment(
+            store: store,
+            searchWindowPresenter: presenter,
+            imageExportService: ImageExportService(destinationChooser: AppEnvironmentFakeImageExportDestinationChooser(destination: destinationURL))
+        )
+
+        environment.openSearch()
+        try XCTUnwrap(presenter.onExportImage)(item)
+
+        XCTAssertNil(environment.lastErrorMessage)
+        XCTAssertNotNil(NSImage(contentsOf: destinationURL))
+    }
+
     /// 选择“只复制到剪贴板”时不发送自动粘贴快捷键。
     @MainActor
     func testPopupSelectionCopyOnlyDoesNotSendPasteCommand() throws {
@@ -596,6 +641,8 @@ final class SearchWindowPresenterTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
         defer { presenter.orderOut() }
@@ -630,6 +677,8 @@ final class SearchWindowPresenterTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
         defer { presenter.orderOut() }
@@ -674,6 +723,8 @@ final class SearchWindowPresenterTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
         defer { presenter.orderOut() }
@@ -777,6 +828,8 @@ final class SearchWindowPresenterTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
         defer { presenter.orderOut() }
@@ -812,6 +865,8 @@ final class SearchWindowPresenterTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
 
@@ -847,6 +902,8 @@ final class SearchWindowPresenterTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
 
@@ -875,6 +932,8 @@ final class SearchWindowPresenterTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
         defer { secondPresenter.orderOut() }
@@ -958,6 +1017,8 @@ private final class AppEnvironmentFakeStore: ClipboardStore {
 private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresenting {
     private let recorder: AppEnvironmentCallRecorder
     private(set) var onPaste: ((ClipboardItem) -> Void)?
+    private(set) var onCopyImageText: ((ClipboardItem) -> Void)?
+    private(set) var onExportImage: ((ClipboardItem) -> Void)?
     private(set) var onOpenSettings: (() -> Void)?
     private(set) var onClearNonFavorites: (() -> Void)?
     private(set) var onClearAll: (() -> Void)?
@@ -985,6 +1046,8 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
         onClearAll: @escaping () -> Void,
         onPaste: @escaping (ClipboardItem) -> Void,
         onCopy: @escaping (ClipboardItem) -> Void,
+        onCopyImageText: @escaping (ClipboardItem) -> Void,
+        onExportImage: @escaping (ClipboardItem) -> Void,
         onDelete: @escaping (ClipboardItem) -> Void
     ) {
         recorder.record(previousApplication == nil ? "show" : "showWithPreviousApplication")
@@ -996,6 +1059,8 @@ private final class AppEnvironmentFakeSearchWindowPresenter: SearchWindowPresent
         self.onClearNonFavorites = onClearNonFavorites
         self.onClearAll = onClearAll
         self.onPaste = onPaste
+        self.onCopyImageText = onCopyImageText
+        self.onExportImage = onExportImage
     }
 
     func orderOut() {
@@ -1069,6 +1134,15 @@ private final class AppEnvironmentFakePasteEventSender: PasteEventSending {
         if let error {
             throw error
         }
+    }
+}
+
+/// AppEnvironment 测试用图片导出目标选择器。
+private struct AppEnvironmentFakeImageExportDestinationChooser: ImageExportDestinationChoosing {
+    let destination: URL?
+
+    func exportDestination(defaultFilename: String) -> URL? {
+        destination
     }
 }
 

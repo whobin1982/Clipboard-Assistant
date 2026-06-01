@@ -21,6 +21,8 @@ struct ClipboardPopupView: View {
     var onClearAll: () -> Void
     var onPaste: (ClipboardItem) -> Void
     var onCopy: (ClipboardItem) -> Void
+    var onCopyImageText: (ClipboardItem) -> Void
+    var onExportImage: (ClipboardItem) -> Void
     var onDelete: (ClipboardItem) -> Void
 
     /// 弹窗内容布局：顶部操作栏，中间错误或空状态，底部历史列表。
@@ -146,7 +148,9 @@ struct ClipboardPopupView: View {
                                     onFavorite: { viewModel.toggleFavorite(item) },
                                     onDelete: { onDelete(item) },
                                     onPaste: { onPaste(item) },
-                                    onCopy: { onCopy(item) }
+                                    onCopy: { onCopy(item) },
+                                    onCopyImageText: { onCopyImageText(item) },
+                                    onExportImage: { onExportImage(item) }
                                 )
                                 .id(item.id)
                                 .frame(maxWidth: .infinity, alignment: .leading)

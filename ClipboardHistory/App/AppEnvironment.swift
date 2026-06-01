@@ -25,6 +25,8 @@ final class AppEnvironment: ObservableObject {
     private let store: ClipboardStore
     /// 负责把某条历史记录写回系统剪贴板，并可发送系统粘贴快捷键。
     private let pasteService: PasteService
+    /// 负责把图片历史导出为普通图片文件。
+    private let imageExportService: ImageExportService
     /// 历史记录窗口展示器，单独抽象出来便于测试窗口调用参数。
     private let searchWindowPresenter: SearchWindowPresenting
     /// 设置窗口展示器。
@@ -50,6 +52,7 @@ final class AppEnvironment: ObservableObject {
         store: ClipboardStore = InMemoryClipboardStore(),
         pasteService: PasteService = PasteService(),
         searchWindowPresenter: SearchWindowPresenting? = nil,
+        imageExportService: ImageExportService? = nil,
         settingsWindowPresenter: SettingsWindowPresenting? = nil,
         imageStorage: ImageStorage? = nil,
         settings: AppSettings = .default,
@@ -61,6 +64,7 @@ final class AppEnvironment: ObservableObject {
         self.isRecordingPaused = isRecordingPaused
         self.store = store
         self.pasteService = pasteService
+        self.imageExportService = imageExportService ?? ImageExportService()
         self.searchWindowPresenter = searchWindowPresenter ?? SearchWindowPresenter()
         self.settingsWindowPresenter = settingsWindowPresenter ?? SettingsWindowPresenter()
         self.imageStorage = imageStorage
@@ -231,6 +235,8 @@ final class AppEnvironment: ObservableObject {
             },
             onPaste: pasteFromSearchWindow,
             onCopy: copy,
+            onCopyImageText: copyImageText,
+            onExportImage: exportImage,
             onDelete: delete
         )
     }
@@ -296,6 +302,24 @@ final class AppEnvironment: ObservableObject {
             try pasteService.copy(item)
             try markUsed(item)
             historyViewModel.reload()
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    /// 复制图片里的文字。OCR 功能会在后续版本落地，当前先给用户明确反馈。
+    func copyImageText(_ item: ClipboardItem) {
+        guard item.kind == .image else { return }
+        lastErrorMessage = "这张图片还没有可复制的识别文字。"
+    }
+
+    /// 将图片历史导出为 PNG 文件；取消保存面板时不展示错误。
+    func exportImage(_ item: ClipboardItem) {
+        do {
+            let result = try imageExportService.export(item)
+            if result != .cancelled {
+                lastErrorMessage = nil
+            }
         } catch {
             lastErrorMessage = error.localizedDescription
         }
