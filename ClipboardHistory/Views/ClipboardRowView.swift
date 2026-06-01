@@ -10,6 +10,8 @@ struct ClipboardRowView: View {
     let onDelete: () -> Void
     let onPaste: () -> Void
     let onCopy: () -> Void
+    let onCopyImageText: () -> Void
+    let onExportImage: () -> Void
 
     /// 行布局：左侧内容区域，右侧快捷操作按钮。
     var body: some View {
@@ -24,6 +26,16 @@ struct ClipboardRowView: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill(isSelected ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
         )
+        .contextMenu {
+            if item.kind == .image {
+                Button("复制图片", action: onCopy)
+                Button("复制图片文字", action: onCopyImageText)
+
+                Divider()
+
+                Button("导出图片", action: onExportImage)
+            }
+        }
     }
 
     /// 可点击的主体内容，点击后执行粘贴。

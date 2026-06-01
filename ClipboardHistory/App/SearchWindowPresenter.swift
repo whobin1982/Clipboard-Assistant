@@ -20,6 +20,8 @@ protocol SearchWindowPresenting: AnyObject {
         onClearAll: @escaping () -> Void,
         onPaste: @escaping (ClipboardItem) -> Void,
         onCopy: @escaping (ClipboardItem) -> Void,
+        onCopyImageText: @escaping (ClipboardItem) -> Void,
+        onExportImage: @escaping (ClipboardItem) -> Void,
         onDelete: @escaping (ClipboardItem) -> Void
     )
     /// 隐藏历史窗口，同时保存窗口位置和尺寸。
@@ -61,6 +63,8 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
         onClearAll: @escaping () -> Void,
         onPaste: @escaping (ClipboardItem) -> Void,
         onCopy: @escaping (ClipboardItem) -> Void,
+        onCopyImageText: @escaping (ClipboardItem) -> Void,
+        onExportImage: @escaping (ClipboardItem) -> Void,
         onDelete: @escaping (ClipboardItem) -> Void
     ) {
         capturePreviousApplication(fallback: previousApplication)
@@ -79,6 +83,8 @@ final class SearchWindowPresenter: NSObject, SearchWindowPresenting, NSWindowDel
             onClearAll: onClearAll,
             onPaste: onPaste,
             onCopy: onCopy,
+            onCopyImageText: onCopyImageText,
+            onExportImage: onExportImage,
             onDelete: onDelete
         )
 

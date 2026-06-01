@@ -6,6 +6,21 @@ import XCTest
 /// 验证历史记录弹窗的视图结构，避免滚动可见行计算再次退回到原生表格实现。
 @MainActor
 final class ClipboardPopupViewTests: XCTestCase {
+    /// 图片行应提供图片专用右键菜单，且菜单只挂在图片记录条件下。
+    func testImageRowsExposeImageOnlyContextMenuActions() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = projectRoot.appendingPathComponent("ClipboardHistory/Views/ClipboardRowView.swift")
+        let source = try String(contentsOf: sourceURL)
+
+        XCTAssertTrue(source.contains(".contextMenu"))
+        XCTAssertTrue(source.contains("item.kind == .image"))
+        XCTAssertTrue(source.contains("复制图片"))
+        XCTAssertTrue(source.contains("复制图片文字"))
+        XCTAssertTrue(source.contains("导出图片"))
+    }
+
     /// 历史列表不能使用 macOS NSTableView，否则 SwiftUI 行位置偏好不会随滚动稳定刷新。
     func testHistoryListAvoidsNSTableViewSoVisibleShortcutGeometryCanTrackScrolling() throws {
         let store = try SQLiteClipboardStore.temporary()
@@ -26,6 +41,8 @@ final class ClipboardPopupViewTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
         let hostingView = NSHostingView(rootView: rootView)
@@ -68,6 +85,8 @@ final class ClipboardPopupViewTests: XCTestCase {
             onClearAll: {},
             onPaste: { _ in },
             onCopy: { _ in },
+            onCopyImageText: { _ in },
+            onExportImage: { _ in },
             onDelete: { _ in }
         )
         let hostingView = NSHostingView(rootView: rootView)
